@@ -1,0 +1,21 @@
+sudo: required
+
+dist: stretch
+
+language: python
+
+services:
+  - docker
+
+matrix:
+  include:
+    - env: IMG=python:2.7
+    - env: IMG=python:3.5
+    - env: IMG=python:3.6
+    - env: IMG=adreeve/python-numpy:latest
+
+install:
+  - docker pull $IMG
+
+script:
+  - docker run -t --rm -v `pwd`:/root/scinum -w /root/scinum -e $IMG python -m unittest tests
