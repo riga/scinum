@@ -18,4 +18,4 @@ install:
   - docker pull $IMG
 
 script:
-  - docker run -t --rm -v `pwd`:/root/scinum -w /root/scinum -e $IMG python -m unittest tests
+  - docker run -t --rm -v `pwd`:/root/scinum -w /root/scinum $IMG python -m unittest tests
