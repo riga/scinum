@@ -190,15 +190,15 @@ class Number(object):
     .. code-block:: python
 
         num = Number(5, 1)
-        print((num + 2).str()) # -> 7.00 (+1.00, -1.00)
-        print((num * 3).str()) # -> 15.00 (+3.00, -3.00)
+        print(num + 2) # -> 7.00 (+1.00, -1.00)
+        print(num * 3) # -> 15.00 (+3.00, -3.00)
 
         num2 = Number(2.5, 1.5)
-        print((num + num2).str()) # -> 7.50 (+1.80, -1.80)
-        print((num * num2).str()) # -> 12.50 (+7.91, -7.91)
+        print(num + num2) # -> 7.50 (+1.80, -1.80)
+        print(num * num2) # -> 12.50 (+7.91, -7.91)
 
         num.add(num2, rho=1)
-        print(num.str()) # -> 7.5 (+2.50, -2.50)
+        print(num) # -> 7.5 (+2.50, -2.50)
 
     .. py:attribute:: DEFAULT
        classmember
@@ -342,8 +342,8 @@ class Number(object):
 
         return _uncertainties
 
-    def get_uncertainty(self, name, direction=None, **kwargs):
-        """ get_uncertainty(name, direction=None, default=None)
+    def get_uncertainty(self, name=DEFAULT, direction=None, **kwargs):
+        """ get_uncertainty(name=DEFAULT, direction=None, default=None)
         Returns the *absolute* up and down variaton in a 2-tuple for an uncertainty *name*. When
         *direction* is set, the particular value is returned instead of a 2-tuple. In case no
         uncertainty was found and *default* is given, that value is returned.
@@ -691,7 +691,7 @@ class ops(object):
     .. code-block:: python
 
         num = ops.pow(Number(5., 1.), 2)
-        print(num.str()) # -> 25.00 (+10.00, -10.00)
+        print(num) # -> 25.00 (+10.00, -10.00)
     """
 
     _instances = {}
@@ -714,14 +714,15 @@ class ops(object):
             def my_op(x):
                 return 2
 
-            num = Number(5., 2.)
-            print(num.str()) # -> 5.00 (+2.00, -2.00)
+            num = Number(5, 2)
+            print(num) # -> 5.00 (+2.00, -2.00)
 
-            num = math.my_op(num)
-            print(num.str()) # -> 11.00 (+4.00, -4.00)
+            num = ops.my_op(num)
+            print(num) # -> 11.00 (+4.00, -4.00)
 
-        Please note that there is no need to register *simple* functions as the particular example
-        above as most of them are just composite operations whose derivatives are already known.
+        Please note that there is no need to register *simple* functions as in the particular
+        example above as most of them are just composite operations whose derivatives are already
+        known.
         """
         def register(function):
             op = Operation(function, name=name)
