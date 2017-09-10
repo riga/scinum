@@ -613,6 +613,15 @@ class Number(object):
     def __idiv__(self, other):
         return self.div(other, inplace=True)
 
+    def __truediv__(self, other):
+        return self.div(other, inplace=False)
+
+    def __rtruediv__(self, other):
+        return ensure_number(other).div(self, inplace=False)
+
+    def __itruediv__(self, other):
+        return self.div(other, inplace=True)
+
     def __pow__(self, other):
         return self.pow(other, inplace=False)
 
