@@ -476,7 +476,7 @@ class Number(object):
         per uncertainty when passed as a dict. When *inplace* is *False*, a new instance is
         returned.
         """
-        return self._apply(operator.div, *args, **kwargs)
+        return self._apply(operator.truediv, *args, **kwargs)
 
     def pow(self, *args, **kwargs):
         """ pow(other, rho=0, inplace=True)
@@ -847,7 +847,7 @@ def tan(x):
 # helper functions
 #
 
-_op_map = {"+": operator.add, "-": operator.sub, "*": operator.mul, "/": operator.div,
+_op_map = {"+": operator.add, "-": operator.sub, "*": operator.mul, "/": operator.truediv,
            "**": operator.pow}
 _op_map_reverse = dict(zip(_op_map.values(), _op_map.keys()))
 

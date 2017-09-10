@@ -62,6 +62,7 @@ class TestCase(unittest.TestCase):
         self.assertEqual(len(self.num.str()), 137)
         self.assertEqual(len(self.num.str("%.3f")), 152)
 
+        print(self.num.repr(), len(self.num.repr()))
         self.assertEqual(len(self.num.repr()), 162)
         self.assertEqual(len(self.num.repr("%.3f")), 177)
 
