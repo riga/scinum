@@ -62,16 +62,15 @@ class TestCase(unittest.TestCase):
         self.assertEqual(len(self.num.str()), 137)
         self.assertEqual(len(self.num.str("%.3f")), 152)
 
-        print(self.num.repr(), len(self.num.repr()))
-        self.assertEqual(len(self.num.repr()), 162)
-        self.assertEqual(len(self.num.repr("%.3f")), 177)
+        self.assertEqual(len(self.num.repr().split(" ", 3)[-1]), 138)
+        self.assertEqual(len(self.num.repr("%.3f").split(" ", 3)[-1]), 153)
 
         num = self.num.copy()
         num.uncertainties = {}
 
         self.assertEqual(len(num.str()), 22)
         self.assertTrue(num.str().endswith(", no uncertainties"))
-        self.assertEqual(len(num.repr()), 47)
+        self.assertEqual(len(num.repr().split(" ", 3)[-1]), 23)
 
     def test_uncertainty_parsing(self):
         uncs = {}

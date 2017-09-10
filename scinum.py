@@ -16,6 +16,7 @@ __version__    = "0.0.1"
 __all__        = ["Number", "Operation", "ops"]
 
 
+import sys
 import math
 import functools
 import operator
@@ -28,6 +29,11 @@ try:
 except ImportError:
     np = None
     HAS_NUMPY = False
+
+
+# version related adjustments
+if sys.version_info > (3, 0):
+    basestring = str
 
 
 # metaclass decorator from six package, credits to Benjamin Peterson
