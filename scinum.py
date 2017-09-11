@@ -880,6 +880,54 @@ class ops(object):
 #
 
 @ops.register
+def add(x, n):
+    """ add(x, n)
+    Addition function.
+    """
+    return x + n
+
+@add.derive
+def add(x, n):
+    return 1.
+
+
+@ops.register
+def sub(x, n):
+    """ sub(x, n)
+    Subtraction function.
+    """
+    return x - n
+
+@sub.derive
+def sub(x, n):
+    return 1.
+
+
+@ops.register
+def mul(x, n):
+    """ mul(x, n)
+    Multiplication function.
+    """
+    return x * n
+
+@mul.derive
+def mul(x, n):
+    return n
+
+
+@ops.register
+def div(x, n):
+    """ div(x, n)
+    Division function.
+    """
+    return x / n
+
+@div.derive
+def div(x, n):
+    return 1. / n
+
+
+@ops.register
 def pow(x, n):
     """ pow(x, n)
     Power function.
@@ -924,6 +972,18 @@ def log(x, base=None):
 
 
 @ops.register
+def sqrt(x):
+    """ sqrt(x)
+    Square root function.
+    """
+    return infer_math(x).sqrt(x)
+
+@sqrt.derive
+def sqrt(x):
+    return 1. / (2 * infer_math(x).sqrt(x))
+
+
+@ops.register
 def sin(x):
     """ sin(x)
     Trigonometric sin function.
@@ -957,6 +1017,134 @@ def tan(x):
 @tan.derive
 def tan(x):
     return 1. / infer_math(x).cos(x) ** 2
+
+
+@ops.register
+def asin(x):
+    """ asin(x)
+    Trigonometric arc sin function.
+    """
+    _math = infer_math(x)
+    if _math is math:
+        return _math.asin(x)
+    else:
+        return _math.arcsin(x)
+
+@asin.derive
+def asin(x):
+    return 1. / infer_math(x).sqrt(1 - x ** 2.)
+
+
+@ops.register
+def acos(x):
+    """ acos(x)
+    Trigonometric arc cos function.
+    """
+    _math = infer_math(x)
+    if _math is math:
+        return _math.acos(x)
+    else:
+        return _math.arccos(x)
+
+@acos.derive
+def acos(x):
+    return -1. / infer_math(x).sqrt(1 - x ** 2.)
+
+
+@ops.register
+def atan(x):
+    """ tan(x)
+    Trigonometric arc tan function.
+    """
+    _math = infer_math(x)
+    if _math is math:
+        return _math.atan(x)
+    else:
+        return _math.arctan(x)
+
+@atan.derive
+def atan(x):
+    return 1. / (1 + x ** 2.)
+
+
+@ops.register
+def sinh(x):
+    """ sinh(x)
+    Hyperbolic sin function.
+    """
+    return infer_math(x).sinh(x)
+
+@sinh.derive
+def sinh(x):
+    return infer_math(x).cosh(x)
+
+
+@ops.register
+def cosh(x):
+    """ cosh(x)
+    Hyperbolic cos function.
+    """
+    return infer_math(x).cosh(x)
+
+@cosh.derive
+def cosh(x):
+    return infer_math(x).sinh(x)
+
+
+@ops.register
+def tanh(x):
+    """ tanh(x)
+    Hyperbolic tan function.
+    """
+    return infer_math(x).tanh(x)
+
+@tanh.derive
+def tanh(x):
+    return 1. / infer_math(x).cosh(x) ** 2
+
+
+@ops.register
+def asinh(x):
+    """ asinh(x)
+    Hyperbolic arc sin function.
+    """
+    _math = infer_math(x)
+    if _math is math:
+        return _math.asinh(x)
+    else:
+        return _math.arcsinh(x)
+
+
+@ops.register
+def acosh(x):
+    """ acosh(x)
+    Hyperbolic arc cos function.
+    """
+    _math = infer_math(x)
+    if _math is math:
+        return _math.acosh(x)
+    else:
+        return _math.arccosh(x)
+
+asinh.derivative = acosh.function
+acosh.derivative = asinh.function
+
+
+@ops.register
+def atanh(x):
+    """ atanh(x)
+    Hyperbolic arc tan function.
+    """
+    _math = infer_math(x)
+    if _math is math:
+        return _math.atanh(x)
+    else:
+        return _math.arctanh(x)
+
+@atanh.derive
+def atanh(x):
+    return 1. / (1. - x ** 2.)
+
 
 
 #
