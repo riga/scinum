@@ -300,13 +300,13 @@ class Number(object):
     def nominal(self, nominal):
         # parser for the typed member holding the nominal value
         if isinstance(nominal, (int, float)):
-            if self.uncertainties and is_numpy(self.uncertainties.values()[0][0]):
+            if self.uncertainties and is_numpy(list(self.uncertainties.values())[0][0]):
                 raise TypeError("cannot set nominal to plain value when uncertainties are arrays")
             nominal = float(nominal)
         elif is_numpy(nominal):
             # check and adjust uncertainties
             if self.uncertainties:
-                first_unc = self.uncertainties.values()[0][0]
+                first_unc = list(self.uncertainties.values())[0][0]
                 # convert to arrays
                 if not is_numpy(first_unc):
                     for name, unc in self.uncertainties.items():
