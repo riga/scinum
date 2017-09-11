@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Scientific numbers with multiple uncertainties and correlation-aware propagation.
+Scientific numbers with multiple uncertainties and correlation-aware, gaussian propagation.
 """
 
 
@@ -249,6 +249,23 @@ class Number(object):
        type: dictionary
 
        The uncertainty dictionary that maps names to 2-tuples holding absolute up/down effects.
+
+    .. py:attribute:: is_numpy
+       type: bool
+       read-only
+
+       Whether or not a NumPy array is wrapped.
+
+    .. py:attribute:: shape
+       type: tuple
+
+       The shape of the wrapped NumPy array or *None*, depending on what type is wrapped.
+
+    .. py:attribute:: dtype
+       type: type
+
+       The default dtype to use when a NumPy array is wrapped. The initial value is
+       ``numpy.float32`` when NumPy is available, *None* otherwise.
     """
 
     # uncertainty flags
@@ -267,21 +284,39 @@ class Number(object):
     def __init__(self, nominal=0.0, uncertainties=None):
         super(Number, self).__init__()
 
-        # the nominal value
+        # wrapped values
         self._nominal = None
-        self.nominal = nominal
-
-        # uncertainties mapped to their names
         self._uncertainties = {}
+
+        # numpy settings
+        self.dtype = np.float32 if HAS_NUMPY else None
+
+        # set initial values
+        self.nominal = nominal
         if uncertainties is not None:
             self.uncertainties = uncertainties
 
     @typed
-    def nominal(self, nominal): # TODO: numpy
+    def nominal(self, nominal):
         # parser for the typed member holding the nominal value
-        if isinstance(nominal, int):
+        if isinstance(nominal, (int, float)):
+            if self.uncertainties and is_numpy(self.uncertainties.values()[0][0]):
+                raise TypeError("cannot set nominal to plain value when uncertainties are arrays")
             nominal = float(nominal)
-        if not isinstance(nominal, float):
+        elif is_numpy(nominal):
+            # check and adjust uncertainties
+            if self.uncertainties:
+                first_unc = self.uncertainties.values()[0][0]
+                # convert to arrays
+                if not is_numpy(first_unc):
+                    for name, unc in self.uncertainties.items():
+                        unc = tuple(u * np.ones(nominal.shape, dtype=self.dtype) for u in unc)
+                        self._uncertainties[name] = unc
+                # compare shape if already an array
+                elif nominal.shape != first_unc.shape:
+                    raise ValueError("shape not matching uncertainty shape: %s" % nominal.shape)
+            nominal = nominal.astype(self.dtype)
+        else:
             raise TypeError("invalid nominal value: %s" % nominal)
 
         return nominal
@@ -295,7 +330,7 @@ class Number(object):
         self.nominal = n
 
     @typed
-    def uncertainties(self, uncertainties): # TODO: numpy
+    def uncertainties(self, uncertainties):
         # parser for the typed member holding the uncertainties
         if not isinstance(uncertainties, dict):
             try:
@@ -310,8 +345,8 @@ class Number(object):
                 raise TypeError("invalid uncertainty name: %s" % name)
 
             # parse the value type
-            if isinstance(val, (int, float)):
-                val = (float(val), float(val))
+            if isinstance(val, (int, float)) or is_numpy(val):
+                val = (val, val)
             elif isinstance(val, list):
                 val = tuple(val)
             elif not isinstance(val, tuple):
@@ -320,24 +355,42 @@ class Number(object):
             # parse the value itself
             utype, up, down = self.ABS, None, None
             for v in val:
+                # check if the uncertainty type is changed
                 if isinstance(v, basestring):
-                    # change the uncertainty type
                     if v not in (self.ABS, self.REL):
                         raise ValueError("unknown uncertainty type: %s" % v)
                     utype = v
-                elif not isinstance(v, (int, float)):
-                    raise TypeError("invalid uncertainty value: %s" % v)
+                    continue
+
+                # parse the value
+                if isinstance(v, (int, float)):
+                    v = float(v)
+                    # convert to array when nominal is in array
+                    if self.is_numpy:
+                        v *= np.ones(self.shape, dtype=self.dtype)
+                elif is_numpy(v):
+                    # check the shape
+                    if v.shape != self.shape:
+                        raise ValueError("shape not matching nominal shape: %s" % v.shape)
+                    v = v.astype(self.dtype)
                 else:
-                    v = float(v) if utype == self.ABS else v * self.nominal
-                    if up is None:
-                        up = v
-                    else:
-                        down = v
-                        break
+                    raise TypeError("invalid uncertainty value: %s" % v)
+
+                # convert to abs
+                if utype == self.REL:
+                    v *= self.nominal
+
+                # store the value
+                if up is None:
+                    up = v
+                else:
+                    down = v
+                    break
+
+            # down defaults to up
             if down is None:
                 down = up
 
-            # store it
             _uncertainties[str(name)] = (up, down)
 
         return _uncertainties
@@ -372,36 +425,63 @@ class Number(object):
         uncertainties = self.__class__.uncertainties.fparse(self, {name: value})
         self._uncertainties.update(uncertainties)
 
-    def str(self, format="%.2f"): # TODO: numpy
+    def str(self, format="%.2f", **kwargs):
         """
-        Returns a readable string representiation of the number. *format* is used to format the
-        nominal and uncertainty values. It can be a string such as ``"%d"`` or a function that is
-        passed the value to format.
+        Returns a readable string representiation of the number. *format* is used to format
+        non-NumPy nominal and uncertainty values. It can be a string such as ``"%d"`` or a function
+        that is passed the value to format. In case of NumPy objects, all *kwargs* are passed to
+        `numpy.array2string
+        <https://docs.scipy.org/doc/numpy/reference/generated/numpy.array2string.html>`_.
         """
-        if callable(format):
-            fmt = format
-        else:
-            fmt = lambda x: format % x
+        if not self.is_numpy:
+            if callable(format):
+                fmt = format
+            else:
+                fmt = lambda x: format % x
 
-        if len(self.uncertainties) == 0:
-            unc_text = ", no uncertainties"
-        elif len(self.uncertainties) == 1 and self.uncertainties.keys()[0] == self.DEFAULT:
-            up, down = self.uncertainties.values()[0]
-            unc_text = " (+%s, -%s)" % (fmt(up), fmt(down))
-        else:
+            # nominal text
+            nom_text = fmt(self.nominal)
+
+            # uncertainty text
             unc_text = ""
-            for name, (up, down) in self.uncertainties.items():
-                unc_text += ", %s: (+%s, -%s)" % (name, fmt(up), fmt(down))
+            if len(self.uncertainties) == 0:
+                unc_text += ", no uncertainties"
+            elif len(self.uncertainties) == 1 and self.uncertainties.keys()[0] == self.DEFAULT:
+                up, down = self.get_uncertainty()
+                unc_text = " (+%s, -%s)" % (fmt(up), fmt(down))
+            else:
+                for name, (up, down) in self.uncertainties.items():
+                    unc_text += ", %s: (+%s, -%s)" % (name, fmt(up), fmt(down))
+        else:
+            # nominal text
+            nom_text = np.array2string(self.nominal, **kwargs)
 
-        return "%s%s" % (fmt(self.nominal), unc_text)
+            # uncertainty text
+            unc_text = ""
+            if len(self.uncertainties) == 0:
+                unc_text += ", no uncertainties"
+            elif len(self.uncertainties) == 1 and self.uncertainties.keys()[0] == self.DEFAULT:
+                up, down = self.get_uncertainty()
+                unc_text += "\n+ %s" % np.array2string(up, **kwargs)
+                unc_text += "\n- %s" % np.array2string(down, **kwargs)
+            else:
+                for name, (up, down) in self.uncertainties.items():
+                    unc_text += "\n+ %s %s" % (name, np.array2string(up, **kwargs))
+                    unc_text += "\n- %s %s" % (name, np.array2string(down, **kwargs))
 
-    def repr(self, *args, **kwargs): # TODO: numpy
+        return nom_text + unc_text
+
+    def repr(self):
         """
-        Returns the unique string representation of the number. All *args* and *kwargs* are passed
-        to :py:meth:`str`.
+        Returns the unique string representation of the number.
         """
-        tpl = (self.__class__.__name__, hex(id(self)), self.str(*args, **kwargs))
-        return "<%s at %s: %s>" % tpl
+        if not self.is_numpy:
+            nom_text = str(self.nominal)
+        else:
+            nom_text = np.array2string(self.nominal)
+
+        tpl = (self.__class__.__name__, hex(id(self)), nom_text, len(self.uncertainties))
+        return "<%s at %s, nominal: %s, uncertaintie(s): %i>" % tpl
 
     def copy(self, nominal=None, uncertainties=None):
         """
@@ -438,7 +518,7 @@ class Number(object):
             # calculate the combined uncertainty without correlation
             idx = int(direction == self.DOWN)
             uncs = [self.uncertainties[name][idx] for name in names]
-            unc = sum(u ** 2 for u in uncs) ** 0.5
+            unc = sum(u ** 2. for u in uncs) ** 0.5
 
             # determine the output value
             if diff:
@@ -452,6 +532,14 @@ class Number(object):
             raise ValueError("unknown direction: %s" % direction)
 
         return value if not factor else value / self.nominal
+
+    @property
+    def is_numpy(self):
+        return is_numpy(self.nominal)
+
+    @property
+    def shape(self):
+        return None if not self.is_numpy else self.nominal.shape
 
     def add(self, *args, **kwargs):
         """ add(other, rho=0, inplace=True)
@@ -537,32 +625,40 @@ class Number(object):
         # check whether name is an unceratinty
         return name in self.uncertainties
 
-    def __nonzero__(self): # TODO: numpy?
+    def __nonzero__(self):
         # forward to self.nominal
         return self.nominal.__nonzero__()
 
-    def __eq__(self, other): # TODO: numpy
+    def __eq__(self, other):
         # compare nominal values
-        return self.nominal == ensure_nominal(other)
+        if not self.is_numpy:
+            return self.nominal == ensure_nominal(other)
+        else:
+            # element-wise
+            return np.equal(self.nominal, ensure_nominal(other))
 
-    def __ne__(self, other): # TODO: numpy
-        # compare nominal values
-        return self.nominal != ensure_nominal(other)
+    def __ne__(self, other):
+        # opposite of __eq__
+        return not self.__eq__(other)
 
-    def __lt__(self, other): # TODO: numpy
+    def __lt__(self, other):
         # compare nominal values
+        # numpy: element-wise
         return self.nominal < ensure_nominal(other)
 
-    def __le__(self, other): # TODO: numpy
+    def __le__(self, other):
         # compare nominal values
+        # numpy: element-wise
         return self.nominal <= ensure_nominal(other)
 
-    def __gt__(self, other): # TODO: numpy
+    def __gt__(self, other):
         # compare nominal values
+        # numpy: element-wise
         return self.nominal > ensure_nominal(other)
 
-    def __ge__(self, other): # TODO: numpy
+    def __ge__(self, other):
         # compare nominal values
+        # numpy: element-wise
         return self.nominal >= ensure_nominal(other)
 
     def __pos__(self):
@@ -573,9 +669,13 @@ class Number(object):
         # simply copy and flip the nominal value
         return self.copy(nominal=-self.nominal)
 
-    def __abs__(self): # TODO: numpy
-        # forward to either pos or neg
-        return self.__pos__() if self.nominal >= 0 else self.__neg__()
+    def __abs__(self):
+        # make nominal absolute
+        if not is_numpy:
+            nominal = abs(self.nominal)
+        else:
+            nominal = np.abs(self.nominal)
+        return self.copy(nominal=nominal)
 
     def __add__(self, other):
         return self.add(other, inplace=False)
@@ -690,7 +790,7 @@ class ops(object):
 
     .. code-block:: python
 
-        num = ops.pow(Number(5., 1.), 2)
+        num = ops.pow(Number(5, 1), 2)
         print(num) # -> 25.00 (+10.00, -10.00)
     """
 

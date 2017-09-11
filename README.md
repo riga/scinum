@@ -42,10 +42,26 @@ num = Number(2.5, {
 ```
 
 
-###### NumPy
+###### NumPy arrays
 
 ```python
-TODO
+from scinum import Number
+ABS, REL = Number.ABS, Number.REL
+import numpy as np
+
+num = Number(np.array([3, 4, 5]), 2)
+print(num)
+# [ 3.  4.  5.]
+# + [ 2.  2.  2.]
+# - [ 2.  2.  2.]
+
+num = Number(np.array([3, 4, 5]), {
+    "sourceA": (np.array([0.1, 0.2, 0.3]), REL, 0.5)
+})
+print(num)
+# [ 3.  4.  5.]
+# + sourceA [ 0.1  0.2  0.3]
+# - sourceA [ 1.5  2.   2.5]
 ```
 
 
@@ -69,7 +85,7 @@ print(num) # -> 7.5 (+2.50, -2.50)
 
 ###### Math operations
 
-As a drop-in replacement of the `math` module, scinum provides an object `ops` that contains math operations that are aware of uncertainty propagation.
+As a drop-in replacement for the `math` module, scinum provides an object `ops` that contains math operations that are aware of error propagation.
 
 ```python
 from scinum import Number, ops
@@ -84,7 +100,7 @@ print(num) # -> 0.03 (+0.85, -0.85)
 
 ###### Custom operations
 
-There might be situations when a specific operation is not (yet) contained in the `ops` object. In this case, you can easily register a new one via:
+There might be situations where a specific operation is not (yet) contained in the `ops` object. In this case, you can easily register a new one via:
 
 ```python
 from scinum import Number, ops
@@ -101,7 +117,7 @@ num = ops.my_op(Number(5, 2))
 print(num) # -> 11.00 (+4.00, -4.00)
 ```
 
-Please note that there is no need to register *simple* functions as in the particular example above as most of them are just composite operations whose derivatives are already known.
+Please note that there is no need to register *simple* functions as in the particular example above as most of them are just composite operations whose propagation rules (derivatives) are already known.
 
 
 ### Installation and dependencies
