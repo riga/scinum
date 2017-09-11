@@ -12,10 +12,17 @@ import unittest
 # adjust the path to import scinum
 base = os.path.normpath(os.path.join(os.path.abspath(__file__), "../.."))
 sys.path.append(base)
-from scinum import Number, Operation, ops
+from scinum import Number, Operation, ops, HAS_NUMPY
+
+if HAS_NUMPY:
+    import numpy as np
 
 UP = Number.UP
 DOWN = Number.DOWN
+
+
+def if_numpy(func):
+    return func if HAS_NUMPY else (lambda self: None)
 
 
 def ptgr(*args):
@@ -48,29 +55,63 @@ class TestCase(unittest.TestCase):
         self.assertEqual(len(unc), 2)
         self.assertEqual(unc, (5., 5.))
 
+    @if_numpy
+    def test_constructor_numpy(self):
+        num = Number(np.array([5, 27, 42]), 5)
+
+        self.assertTrue(num.is_numpy)
+        self.assertEqual(num.shape, (3,))
+
+        unc = num.u()
+        self.assertTrue(all(u.shape == num.shape for u in unc))
+
+        with self.assertRaises(TypeError):
+            num.nominal = 5
+
+        num = Number(5, 2)
+        self.assertFalse(num.is_numpy)
+        self.assertIsNone(num.shape)
+
+        num.nominal = np.arange(5)
+        self.assertTrue(num.is_numpy)
+        self.assertEqual(num.shape, (5,))
+        self.assertEqual(num.u(direction=UP).shape, (5,))
+
+        num.set_uncertainty("A", np.arange(5, 10))
+        with self.assertRaises(ValueError):
+            num.set_uncertainty("B", np.arange(5, 9))
+
     def test_copy(self):
         num = self.num.copy()
-        self.assertTrue(self.num is self.num)
-        self.assertTrue(num is num)
         self.assertFalse(num is self.num)
 
         num = num.copy(nominal=123, uncertainties=1)
         self.assertEqual(num.nominal, 123)
         self.assertEqual(len(num.uncertainties), 1)
 
+    @if_numpy
+    def test_copy_numpy(self):
+        num = self.num.copy()
+        num.nominal = np.array([3, 4, 5])
+        self.assertFalse(num is self.num)
+
+        num = num.copy(uncertainties=1)
+        self.assertEqual(tuple(num.nominal), (3, 4, 5))
+        self.assertEqual(len(num.uncertainties), 1)
+        self.assertEqual(num.u(direction=UP).shape, (3,))
+
     def test_strings(self):
         self.assertEqual(len(self.num.str()), 137)
         self.assertEqual(len(self.num.str("%.3f")), 152)
 
-        self.assertEqual(len(self.num.repr().split(" ", 3)[-1]), 138)
-        self.assertEqual(len(self.num.repr("%.3f").split(" ", 3)[-1]), 153)
+        self.assertEqual(len(self.num.repr().split(" ", 3)[-1]), 33)
 
         num = self.num.copy()
         num.uncertainties = {}
 
         self.assertEqual(len(num.str()), 22)
         self.assertTrue(num.str().endswith(", no uncertainties"))
-        self.assertEqual(len(num.repr().split(" ", 3)[-1]), 23)
+        self.assertEqual(len(num.repr().split(" ", 3)[-1]), 33)
 
     def test_uncertainty_parsing(self):
         uncs = {}
