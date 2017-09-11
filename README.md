@@ -2,7 +2,7 @@
 
 [![Build Status](https://travis-ci.org/riga/scinum.svg?branch=master)](https://travis-ci.org/riga/scinum) [![Documentation Status](https://readthedocs.org/projects/scinum/badge/?version=latest)](http://scinum.readthedocs.org/en/latest/?badge=latest) [![Package Status](https://badge.fury.io/py/scinum.svg)](https://badge.fury.io/py/scinum)
 
-scinum provides a simple `Number` class that wraps plain floats or [NumPy](http://www.numpy.org/) arrays and adds support for multiple uncertainties and automatic error propagation.
+scinum provides a simple `Number` class that wraps plain floats or [NumPy](http://www.numpy.org/) arrays and adds support for multiple uncertainties and automatic, gaussian error propagation.
 
 ### Usage
 
@@ -85,7 +85,7 @@ print(num) # -> 7.5 (+2.50, -2.50)
 
 ###### Math operations
 
-As a drop-in replacement for the `math` module, scinum provides an object `ops` that contains math operations that are aware of error propagation.
+As a drop-in replacement for the `math` module, scinum provides an object `ops` that contains math operations that are aware of guassian error propagation.
 
 ```python
 from scinum import Number, ops

@@ -182,10 +182,10 @@ class Number(object):
     ``Number.DEFAULT``.
 
     This class re-defines most of Python's magic functions to allow transparent use in standard
-    operations like ``+``, ``*``, etc. Uncertainties are propagated automatically. When operations
-    connect two number instances, their uncertainties are combined assuming there is no correlation.
-    For correlation-aware operations, please refer to methods such as :py:meth:`add` or
-    :py:meth:`mul` below. Examples:
+    operations like ``+``, ``*``, etc. Gaussian uncertainty propagation is applied automatically.
+    When operations connect two number instances, their uncertainties are combined assuming there is
+    no correlation. For correlation-aware operations, please refer to methods such as :py:meth:`add`
+    or :py:meth:`mul` below. Examples:
 
     .. code-block:: python
 
