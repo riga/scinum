@@ -82,7 +82,7 @@ class typed(property):
     """
 
     def __init__(self, fparse=None, setter=True, deleter=True, name=None):
-        self._flags = (setter, deleter)
+        self._args = (setter, deleter, name)
 
         # only register the property if fparse is set
         if fparse is not None:
@@ -90,17 +90,21 @@ class typed(property):
 
             # build the default name
             if name is None:
-                name = "_" + fparse.__name__
+                name = fparse.__name__
+            self.__name__ = name
+
+            # the name of the wrapped member
+            m_name = "_" + name
 
             # call the super constructor with generated methods
             property.__init__(self,
-                functools.wraps(fparse)(self._fget(name)),
-                self._fset(name) if setter else None,
-                self._fdel(name) if deleter else None
+                functools.wraps(fparse)(self._fget(m_name)),
+                self._fset(m_name) if setter else None,
+                self._fdel(m_name) if deleter else None
             )
 
     def __call__(self, fparse):
-        return self.__class__(fparse, *self._flags)
+        return self.__class__(fparse, *self._args)
 
     def _fget(self, name):
         """
