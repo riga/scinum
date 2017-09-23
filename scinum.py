@@ -212,32 +212,32 @@ class Number(object):
     .. py:attribute:: ALL
        classmember
 
-       Constant that denotes all unceratinties (``"ALL"``).
+       Constant that denotes all unceratinties (``"all"``).
 
     .. py:attribute:: REL
        classmember
 
-       Constant that denotes relative errors (``"REL"``).
+       Constant that denotes relative errors (``"rel"``).
 
     .. py:attribute:: ABS
        classmember
 
-       Constant that denotes absolute errors (``"ABS"``).
+       Constant that denotes absolute errors (``"abs"``).
 
     .. py:attribute:: NOMINAL
        classmember
 
-       Constant that denotes the nominal value (``"NOMINAL"``).
+       Constant that denotes the nominal value (``"nominal"``).
 
     .. py:attribute:: UP
        classmember
 
-       Constant that denotes the up direction (``"UP"``).
+       Constant that denotes the up direction (``"up"``).
 
     .. py:attribute:: DOWN
        classmember
 
-       Constant that denotes the down direction (``"DOWN"``).
+       Constant that denotes the down direction (``"down"``).
 
     .. py:attribute:: nominal
        type: float
@@ -273,17 +273,17 @@ class Number(object):
     """
 
     # uncertainty flags
-    DEFAULT = "DEFAULT"
-    ALL = "ALL"
+    DEFAULT = "default"
+    ALL = "all"
 
     # uncertainty types
-    REL = "REL"
-    ABS = "ABS"
+    REL = "rel"
+    ABS = "abs"
 
     # uncertainty directions
-    NOMINAL = "NOMINAL"
-    UP = "UP"
-    DOWN = "DOWN"
+    NOMINAL = "nominal"
+    UP = "up"
+    DOWN = "down"
 
     def __init__(self, nominal=0.0, uncertainties=None):
         super(Number, self).__init__()
