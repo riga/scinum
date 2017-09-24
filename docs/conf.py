@@ -15,13 +15,13 @@ author = sn.__author__
 copyright = sn.__copyright__
 version = sn.__version__
 release = sn.__version__
-
+language = "en"
 
 templates_path = ["_templates"]
 html_static_path = ["_static"]
 master_doc = "index"
 source_suffix = ".rst"
-
+add_module_names = True
 
 exclude_patterns = []
 pygments_style = "sphinx"
@@ -35,9 +35,9 @@ html_sidebars = {"**": [
 html_theme_options = {
     "github_user": "riga",
     "github_repo": "scinum",
-    "travis_button": True
+    "travis_button": True,
+    "fixed_sidebar": True
 }
-
 
 extensions = [
     "sphinx.ext.autodoc"
