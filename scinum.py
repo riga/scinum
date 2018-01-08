@@ -21,6 +21,7 @@ import math
 import functools
 import operator
 import types
+import decimal
 
 # optional imports
 try:
@@ -212,7 +213,7 @@ class Number(object):
     .. py:attribute:: ALL
        classmember
 
-       Constant that denotes all unceratinties (``"all"``).
+       Constant that denotes all uncertainties (``"all"``).
 
     .. py:attribute:: REL
        classmember
@@ -429,63 +430,154 @@ class Number(object):
         uncertainties = self.__class__.uncertainties.fparse(self, {name: value})
         self._uncertainties.update(uncertainties)
 
-    def str(self, format="%.2f", **kwargs):
+    def str(self, format="%.2f", unit=None, scientific=False, si=False, labels=True, style="plain",
+        force_asymmetric=False, **kwargs):
         """
         Returns a readable string representiation of the number. *format* is used to format
-        non-NumPy nominal and uncertainty values. It can be a string such as ``"%d"`` or a function
-        that is passed the value to format. In case of NumPy objects, all *kwargs* are passed to
+        non-NumPy nominal and uncertainty values. It can be a string such as ``"%d"``, a function
+        that is passed the value to format, or a rounding method as accepted by
+        :py:meth:`round_value`. All keyword arguments except wildcard *kwargs* are only used to
+        format non-NumPy values. In case of NumPy objects, *kwargs* are passed to
         `numpy.array2string
         <https://docs.scipy.org/doc/numpy/reference/generated/numpy.array2string.html>`_.
+
+        When *unit* is set, it is appended to the end of the string. When *scientific* is *True*,
+        all values are represented by their scientific notation. When *scientific* is *False* and
+        *si* is *True*, the appropriate SI prefix is used. *labels* controls whether uncertainty
+        labels are show in the string. When *True*, uncertainty names are used, but it can also
+        be a list of labels whose order should match the uncertainty dict traversal order. *style*
+        can be *"plain"*, *"latex"*, or *"root"*. Unless *force_asymmetric* is *True*, an
+        uncertainty is quoted as being symmetric if it yields identical values in both directions.
+
+        Examples:
+
+        .. code-block:: python
+
+            n = Number(17.321, {"a": 1.158, "b": 0.453})
+            n.str()              # -> '17.32 +1.16-1.16 (a) +0.45-0.45 (b)'
+            n.str("%.3f")        # -> '17.321 +1.158-1.158 (a) +0.453-0.453 (b)'
+            n.str("publication") # -> '17.32 +1.16-1.16 (a) +0.45-0.45 (b)'
+            n.str("pdg")         # -> '17.3 +1.2-1.2 (a) +0.5-0.5 (b)'
+
+            n = Number(8848, 10)
+            n.str(unit="m", scientific=True)        # -> "8848 +10-10 x 10^3 m"
+            n.str(unit="m", si=True)                # -> "8848 +10-10 km"
+            n.str(unit="m", style="latex")          # -> "$8848^{+10}_{-10}\;\times10^{3}m$"
+            n.str(unit="m", style="latex", si=True) # -> "$8848^{+10}_{-10}\;km$"
+            n.str(unit="m", style="root")           # -> "8848^{+10}_{-10}#times 10^{3}m"
+            n.str(unit="m", style="root", si=True)  # -> "8848^{+10}_{-10} km"
         """
         if not self.is_numpy:
-            if callable(format):
-                fmt = format
-            else:
+            # check style
+            style = style.lower()
+            if style not in _style_dict.keys():
+                raise ValueError("unknown style '%s'" % (style,))
+            d = _style_dict[style]
+
+            # scientific or SI notation?
+            prefix = ""
+            transform = lambda x: x
+            if scientific or si:
+                if scientific:
+                    mag = 0 if self.nominal == 0 else int(math.floor(math.log10(abs(self.nominal))))
+                else:
+                    prefix, mag = infer_si_prefix(self.nominal)
+                transform = lambda x: x * 10. ** -mag
+
+            # gather and transform values
+            nominal = transform(self.nominal)
+            names, ups, downs = [], [], []
+            for name, (up, down) in self.uncertainties.items():
+                names.append(name)
+                ups.append(transform(up))
+                downs.append(transform(down))
+
+            # special formats implemented by round_value
+            if format in ("pub", "publication", "pdg", "one", "onedigit"):
+                nominal, (ups, downs), _mag = round_value(self.nominal, ups, downs, method=format)
+                fmt = lambda x: match_precision(float(x) * 10. ** _mag, 10. ** _mag)
+
+            # string formatting
+            elif not callable(format):
                 fmt = lambda x: format % x
 
-            # nominal text
-            nom_text = fmt(self.nominal)
+            # helper to build the ending consisting of scientific notation or SI prefix, and unit
+            def ending():
+                e = ""
+                if scientific and mag:
+                    e += d["space"] + d["sci"].format(mag=mag)
+                if prefix or unit:
+                    e += d["space"]
+                if prefix:
+                    e += prefix
+                if unit:
+                    e += unit
+                return e
 
-            # uncertainty text
-            unc_text = ""
-            if len(self.uncertainties) == 0:
-                unc_text += ", no uncertainties"
-            elif len(self.uncertainties) == 1 and self.uncertainties.keys()[0] == self.DEFAULT:
-                up, down = self.get_uncertainty()
-                unc_text = " (+%s, -%s)" % (fmt(up), fmt(down))
+            # start building the text
+            text = fmt(nominal, **kwargs)
+
+            # no uncertainties
+            if len(names) == 0:
+                text += ending()
+                if style == "plain" and labels:
+                    text += d["space"] + d["label"].format(label="no uncertainties")
+
+            # one ore more uncertainties
             else:
-                for name, (up, down) in self.uncertainties.items():
-                    unc_text += ", %s: (+%s, -%s)" % (name, fmt(up), fmt(down))
+                # special case: only the default uncertainty
+                if len(names) == 1 and names[0] == self.DEFAULT:
+                    labels = False
+
+                for i, (name, up, down) in enumerate(zip(names, ups, downs)):
+                    up = str(fmt(up))
+                    down = str(fmt(down))
+
+                    if up == down and not force_asymmetric:
+                        text += d["space"] + d["sym"].format(unc=up)
+                    else:
+                        text += d["space"] + d["asym"].format(up=up, down=down)
+
+                    if labels:
+                        label = labels[i] if isinstance(labels, (list, tuple)) else name
+                        text += d["space"] + d["label"].format(label=label)
+
+                text += ending()
+
+            if style == "latex":
+                text = "$" + text + "$"
+
+            return text
         else:
-            # nominal text
-            nom_text = np.array2string(self.nominal, **kwargs)
+            # start with nominal text
+            text = np.array2string(self.nominal, **kwargs)
 
             # uncertainty text
-            unc_text = ""
-            if len(self.uncertainties) == 0:
-                unc_text += ", no uncertainties"
-            elif len(self.uncertainties) == 1 and self.uncertainties.keys()[0] == self.DEFAULT:
+            uncs = self.uncertainties
+            if len(uncs) == 0:
+                text += " (no uncertainties)"
+            elif len(uncs) == 1 and list(uncs.keys())[0] == self.DEFAULT:
                 up, down = self.get_uncertainty()
-                unc_text += "\n+ %s" % np.array2string(up, **kwargs)
-                unc_text += "\n- %s" % np.array2string(down, **kwargs)
+                text += "\n+ %s" % np.array2string(up, **kwargs)
+                text += "\n- %s" % np.array2string(down, **kwargs)
             else:
-                for name, (up, down) in self.uncertainties.items():
-                    unc_text += "\n+ %s %s" % (name, np.array2string(up, **kwargs))
-                    unc_text += "\n- %s %s" % (name, np.array2string(down, **kwargs))
+                for name, (up, down) in uncs.items():
+                    text += "\n+ %s %s" % (name, np.array2string(up, **kwargs))
+                    text += "\n- %s %s" % (name, np.array2string(down, **kwargs))
 
-        return nom_text + unc_text
+            return text
 
-    def repr(self):
+    def repr(self, *args, **kwargs):
         """
         Returns the unique string representation of the number.
         """
         if not self.is_numpy:
-            nom_text = str(self.nominal)
+            text = "'" + self.str(*args, **kwargs) + "'"
         else:
-            nom_text = np.array2string(self.nominal)
+            text = "%s numpy array, %i uncertainties" % (self.shape, len(self.uncertainties()))
 
-        tpl = (self.__class__.__name__, hex(id(self)), nom_text, len(self.uncertainties))
-        return "<%s at %s, nominal: %s, uncertaintie(s): %i>" % tpl
+        tpl = (self.__class__.__name__, hex(id(self)), text)
+        return "<%s at %s, %s>" % tpl
 
     def copy(self, nominal=None, uncertainties=None):
         """
@@ -626,7 +718,7 @@ class Number(object):
         return self.repr()
 
     def __contains__(self, name):
-        # check whether name is an unceratinty
+        # check whether name is an uncertainty
         return name in self.uncertainties
 
     def __nonzero__(self):
@@ -1245,3 +1337,282 @@ def make_list(obj, cast=True):
         return list(obj)
     else:
         return [obj]
+
+
+def split_value(val):
+    """
+    Splits a value *val* into its significand and decimal exponent (magnitude) and returns them in a
+    2-tuple. *val* might also be a numpy array. Example:
+
+    .. code-block:: python
+
+        split_value(1)     # -> (1.0, 0)
+        split_value(0.123) # -> (1.23, -1)
+        split_value(-42.5) # -> (-4.25, 1)
+
+        a = np.array([1, 0.123, -42.5])
+        split_value(a) # -> ([1., 1.23, -4.25], [0, -1, 1])
+
+    The significand will be a float while magnitude will be an integer. *val* can be reconstructed
+    via ``significand * 10 ** magnitude``.
+    """
+    val = ensure_nominal(val)
+
+    if not is_numpy(val):
+        # handle 0 separately
+        if val == 0:
+            return (0., 0)
+
+        mag = int(math.floor(math.log10(abs(val))))
+        sig = float(val) / (10. ** mag)
+
+    else:
+        log = np.zeros(val.shape)
+        np.log10(np.abs(val), out=log, where=(val != 0))
+        mag = np.floor(log).astype(np.int)
+        sig = val.astype(np.float) / (10. ** mag)
+
+    return (sig, mag)
+
+
+def _match_precision(val, ref, *args, **kwargs):
+    if isinstance(ref, float) and ref >= 1:
+        ref = int(ref)
+    val = decimal.Decimal(str(val))
+    ref = decimal.Decimal(str(ref))
+    return str(val.quantize(ref, *args, **kwargs))
+
+
+def match_precision(val, ref, *args, **kwargs):
+    """
+    Returns a string version of a value *val* matching the significant digits as given in *ref*.
+    *val* might also be a numpy array. All remaining *args* and *kwargs* are forwarded to
+    ``Decimal.quantize``. Example:
+
+    .. code-block:: python
+
+        match_precision(1.234, ".1") # -> "1.2"
+        match_precision(1.234, "1.") # -> "1"
+        match_precision(1.234, ".1", decimal.ROUND_UP) # -> "1.3"
+
+        a = np.array([1.234, 5.678, -9.101])
+        match_precision(a, ".1") # -> ["1.2", "5.7", "-9.1"]
+    """
+    val = ensure_nominal(val)
+
+    if not is_numpy(val):
+        ret = _match_precision(val, ref, *args, **kwargs)
+
+    else:
+        # strategy: map into a flat list, create chararray with max itemsize, reshape
+        strings = [_match_precision(v, r, *args, **kwargs) for v, r in np.nditer([val, ref])]
+        ret = np.chararray(len(strings), itemsize=max(len(s) for s in strings))
+        ret[:] = strings
+        ret = ret.reshape(val.shape)
+
+    return ret
+
+
+def _infer_precision(unc, sig, mag, method):
+    prec = 1
+    if method not in ("one", "onedigit"):
+        first_three = int(round(sig * 100))
+        if first_three <= 354:
+            prec += 1
+        elif first_three >= 950:
+            prec += 1
+            if method == "pdg":
+                sig = 1.0
+                mag += 1
+        if method in ("pub", "publication"):
+            prec += 1
+
+    return prec, sig, mag
+
+
+def round_uncertainty(unc, method="publication"):
+    """
+    Rounds an uncertainty *unc* following a specific *method* and returns a 2-tuple containing the
+    significant digits as a string, and the decimal magnitude that is required to recover the
+    uncertainty. *unc* might also be a numpy array. Rounding methods:
+
+    - ``"pdg"``: Rounding rules as defined by the `PDG
+      <http://pdg.lbl.gov/2011/reviews/rpp2011-rev-rpp-intro.pdf#page=13>`_.
+    - ``"publication"``, ``"pub``: Like ``"pdg"`` with an extra significant digit for results that
+      need to be combined later.
+    - ``"onedigit"``, ``"one"``: Forces one single significant digit. This is useful when there are
+      multiple uncertainties that vary by more than a factor 10 among themselves.
+
+    Example:
+
+    .. code-block:: python
+
+        round_uncertainty(0.123, "pub") # -> ("123", -3)
+        round_uncertainty(0.123, "pdg") # -> ("12", -2)
+        round_uncertainty(0.123, "one") # -> ("1", -1)
+
+        round_uncertainty(0.456, "pub") # -> ("46", -2)
+        round_uncertainty(0.456, "pdg") # -> ("5", -1)
+        round_uncertainty(0.456, "one") # -> ("5", -1)
+
+        round_uncertainty(0.987, "pub") # -> ("987", -3)
+        round_uncertainty(0.987, "pdg") # -> ("10", -1)
+        round_uncertainty(0.987, "one") # -> ("10", -1)
+
+        a = np.array([0.123, 0.456, 0.987])
+        round_uncertainty(a, "pub") # -> (["123", "46", "987"], [-3, -2, -3])
+    """
+    # validate the method
+    meth = method.lower()
+    if meth not in ("pub", "publication", "pdg", "one", "onedigit"):
+        raise ValueError("unknown rounding method: %s" % (method,))
+
+    # split the uncertainty
+    sig, mag = split_value(unc)
+
+    # infer the precision based on the method and get updated significand and magnitude
+    if not is_numpy(unc):
+        prec, sig, mag = _infer_precision(unc, sig, mag, meth)
+    else:
+        prec = np.ones(unc.shape).astype(np.int)
+        for p, u, s, m in np.nditer([prec, unc, sig, mag], op_flags=["readwrite"]):
+            p[...], s[...], m[...] = _infer_precision(u, s, m, meth)
+
+    # determine the significant digits and the decimal magnitude that would reconstruct the value
+    digits = match_precision(sig, 10. ** (1 - prec)).replace(".", "")
+    mag -= prec - 1
+
+    return (digits, mag)
+
+
+def round_value(val, unc=None, unc_down=None, method="publication"):
+    """
+    Rounds a number *val* with a single symmetric uncertainty *unc* or asymmetric uncertainties
+    *unc* (interpreted as *up*) and *unc_down*, and calculates the orders of their magnitudes. They
+    both can be a float or a list of floats for simultaneous evaluation. When *val* is a
+    :py:class:`Number` instance, its combined uncertainty is used instead. Returns a 3-tuple
+    containing:
+
+    - The string representation of the central value.
+    - The string representations of the uncertainties in a list. For the symmetric case, this list
+      contains only one element.
+    - The decimal magnitude.
+
+    Examples:
+
+    .. code-block:: python
+
+        round_value(1.23, 0.456)        # -> ("123", ["46"], -2)
+        round_value(1.23, 0.456, 0.987) # -> ("123", ["46", "99"], -2)
+
+        round_value(1.23, [0.456, 0.312]) # -> ("123", [["456", "312"]], -3)
+
+        vals = np.array([1.23, 4.56])
+        uncs = np.array([0.45678, 0.078])
+        round_value(vals, uncs) # -> (["1230", "4560"], [["457", "78"]], -3)
+    """
+    if isinstance(val, Number):
+        unc, unc_down = val.get_uncertainty()
+        val = val.nominal
+    elif unc is None:
+        raise ValueError("unc must be set when val is not a Number instance")
+
+    # prepare unc values
+    asym = unc_down is not None
+    unc_up = unc
+    if not asym:
+        unc_down = unc_up
+
+    if not is_numpy(val):
+        # treat as lists for simultaneous rounding when not numpy arrays
+        passed_list = isinstance(unc_up, (list, tuple)) or isinstance(unc_down, (list, tuple))
+        unc_up = make_list(unc_up)
+        unc_down = make_list(unc_down)
+
+        # sanity checks
+        if len(unc_up) != len(unc_down):
+            raise ValueError("uncertainties should have same length when passed as lists")
+        elif any(unc < 0 for unc in unc_up):
+            raise ValueError("up uncertainties must be positive: %s" % (unc_up,))
+        elif any(unc < 0 for unc in unc_down):
+            raise ValueError("down uncertainties must be positive: %s" % (unc_down,))
+
+        # to determine the precision, use the uncertainty with the smallest magnitude
+        ref_mag = min(round_uncertainty(unc, method=method)[1] for unc in unc_up + unc_down)
+
+        # convert the uncertainty and central value to match the reference magnitude
+        scale = 1. / 10. ** ref_mag
+        val_str = match_precision(scale * val, "1")
+        up_strs = [match_precision(scale * unc, "1") for unc in unc_up]
+        down_strs = [match_precision(scale * unc, "1") for unc in unc_down]
+
+        if passed_list:
+            return (val_str, [up_strs, down_strs] if asym else [up_strs], ref_mag)
+        else:
+            return (val_str, [up_strs[0], down_strs[0]] if asym else [up_strs[0]], ref_mag)
+
+    else:
+        # sanity checks
+        if (unc_up < 0).any():
+            raise ValueError("up uncertainties must be positive: %s" % (unc_up,))
+        elif (unc_down < 0).any():
+            raise ValueError("down uncertainties must be positive: %s" % (unc_down,))
+
+        # to determine the precision, use the uncertainty with the smallest magnitude
+        ref_mag_up = round_uncertainty(unc_up, method=method)[1]
+        ref_mag_down = round_uncertainty(unc_down, method=method)[1]
+        ref_mag = min(ref_mag_up.min(), ref_mag_down.min())
+
+        scale = 1. / 10. ** ref_mag
+        val_str = match_precision(scale * val, "1")
+        up_str = match_precision(scale * unc_up, "1")
+        down_str = match_precision(scale * unc_down, "1")
+
+        return (val_str, [up_str, down_str] if asym else [up_str], ref_mag)
+
+
+si_refixes = dict(zip(range(-18, 18 + 1, 3),
+    ["a", "f", "p", "n", r"\mu", "m", "", "k", "M", "G", "T", "P", "E"]))
+
+
+def infer_si_prefix(f):
+    """
+    Infers the SI prefix of a value *f* and return the string label and decimal magnitude in a
+    2-tuple. Example:
+
+    .. code-block:: python
+
+        infer_si_prefix(1)    # -> ("", 0)
+        infer_si_prefix(25)   # -> ("", 0)
+        infer_si_prefix(4320) # -> ("k", 3)
+    """
+    if f == 0:
+        return "", 0
+    else:
+        mag = 3 * int(math.log10(abs(float(f))) // 3)
+        return si_refixes[mag], mag
+
+
+_style_dict = {
+    "plain": {
+        "space": " ",
+        "label": "({label})",
+        "sym": "+-{unc}",
+        "asym": "+{up}-{down}",
+        "sci": "x 1E{mag}",
+    },
+    "latex": {
+        "space": r"\;",
+        "label": r"\left({label}\right)",
+        "sym": r"\pm{unc}",
+        "asym": r"^{{{up}}}_{{{down}}}",
+        "sci": r"\times10^{{{mag}}}",
+    },
+    "root": {
+        "space": " ",
+        "label": "#left({label}#right)",
+        "sym": "#pm {unc}",
+        "asym": "^{{{up}}}_{{{down}}}",
+        "sci": "#times 10^{{{mag}}}",
+    },
+}

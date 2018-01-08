@@ -16,7 +16,7 @@ from scinum import Number
 UP = Number.UP
 
 num = Number(5, (2, 1))
-print(num)                   # -> 5.00 (+2.00, -1.00)
+print(num)                   # -> 5.00 +2.00-1.00
 print(num.nominal)           # -> 5.0
 print(num.n)                 # -> 5.0 (shorthand)
 print(num.get_uncertainty()) # -> (2.0, 1.0)
@@ -39,6 +39,27 @@ num = Number(2.5, {
     "sourceE": (1.0, REL, 0.2),     # absolute 1.0 up, relative 20% down
     "sourceF": (REL, 0.3, ABS, 0.3) # relative 30% up, absolute 0.3 down
 })
+```
+
+
+###### Formatting
+
+`Number.str()` provides some simple formatting tools, including `latex` and `root latex` support:
+
+```python
+n = Number(17.321, {"a": 1.158, "b": 0.453})
+n.str()              # -> '17.32 +1.16-1.16 (a), +0.45-0.45 (b)'
+n.str("%.3f")        # -> '17.321 +1.158-1.158 (a), +0.453-0.453 (b)'
+n.str("publication") # -> '17.32 +1.16-1.16 (a) +0.45-0.45 (b)'
+n.str("pdg")         # -> '17.3 +1.2-1.2 (a) +0.5-0.5 (b)'
+
+n = Number(8848, 10)
+n.str(unit="m", scientific=True)        # -> "8848 +-10 x 10^3 m"
+n.str(unit="m", si=True)                # -> "8848 +-10 km"
+n.str(unit="m", style="latex")          # -> "$8848\pm10\;\times10^{3}m$"
+n.str(unit="m", style="latex", si=True) # -> "$8848\pm10\;km$"
+n.str(unit="m", style="root")           # -> "8848 #pm 10 #times 10^{3}m"
+n.str(unit="m", style="root", si=True)  # -> "8848 #pm 10 #times km"
 ```
 
 

@@ -84,6 +84,36 @@ Functions
 .. autofunction:: make_list
 
 
+``split_value``
+---------------
+
+.. autofunction:: split_value
+
+
+``match_precision``
+-------------------
+
+.. autofunction:: match_precision
+
+
+``round_uncertainty``
+---------------------
+
+.. autofunction:: round_uncertainty
+
+
+``round_value``
+---------------
+
+.. autofunction:: round_value
+
+
+``infer_si_prefix``
+-------------------
+
+.. autofunction:: infer_si_prefix
+
+
 Other attributes
 ^^^^^^^^^^^^^^^^
 
