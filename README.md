@@ -54,12 +54,14 @@ n.str("publication") # -> '17.32 +1.16-1.16 (a) +0.45-0.45 (b)'
 n.str("pdg")         # -> '17.3 +1.2-1.2 (a) +0.5-0.5 (b)'
 
 n = Number(8848, 10)
-n.str(unit="m", scientific=True)        # -> "8848 +-10 x 10^3 m"
-n.str(unit="m", si=True)                # -> "8848 +-10 km"
-n.str(unit="m", style="latex")          # -> "$8848\pm10\;\times10^{3}m$"
-n.str(unit="m", style="latex", si=True) # -> "$8848\pm10\;km$"
-n.str(unit="m", style="root")           # -> "8848 #pm 10 #times 10^{3}m"
-n.str(unit="m", style="root", si=True)  # -> "8848 #pm 10 #times km"
+n.str(unit="m")                         # -> "8848.00 +-10.00 m"
+n.str(unit="m", force_asymmetric=True)  # -> "8848.00 +10.00-10.00 m"
+n.str(unit="m", scientific=True)        # -> "8.85 +-0.01 x 1E3 m"
+n.str(unit="m", si=True)                # -> "8.85 +-0.01 km"
+n.str(unit="m", style="latex")          # -> "$8848.00\;\pm10.00\;m$"
+n.str(unit="m", style="latex", si=True) # -> "$8.85\;\pm0.01\;km$"
+n.str(unit="m", style="root")           # -> "8848.00 #pm 10.00 m"
+n.str(unit="m", style="root", si=True)  # -> "8.85 #pm 0.01 km"
 ```
 
 
