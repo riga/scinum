@@ -12,7 +12,7 @@ __credits__    = ["Marcel Rieger"]
 __contact__    = "https://github.com/riga/scinum"
 __license__    = "MIT"
 __status__     = "Development"
-__version__    = "0.2.0"
+__version__    = "0.2.1"
 __all__        = ["Number", "Operation", "ops"]
 
 
