@@ -1605,7 +1605,7 @@ _style_dict = {
     },
     "latex": {
         "space": r"\;",
-        "label": r"\left({label}\right)",
+        "label": r"\left(\text{{{label}}}\right)",
         "sym": r"\pm{unc}",
         "asym": r"^{{+{up}}}_{{-{down}}}",
         "sci": r"\times10^{{{mag}}}",
