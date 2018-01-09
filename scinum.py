@@ -460,12 +460,14 @@ class Number(object):
             n.str("pdg")         # -> '17.3 +1.2-1.2 (a) +0.5-0.5 (b)'
 
             n = Number(8848, 10)
-            n.str(unit="m", scientific=True)        # -> "8848 +10-10 x 10^3 m"
-            n.str(unit="m", si=True)                # -> "8848 +10-10 km"
-            n.str(unit="m", style="latex")          # -> "$8848^{+10}_{-10}\;\times10^{3}m$"
-            n.str(unit="m", style="latex", si=True) # -> "$8848^{+10}_{-10}\;km$"
-            n.str(unit="m", style="root")           # -> "8848^{+10}_{-10}#times 10^{3}m"
-            n.str(unit="m", style="root", si=True)  # -> "8848^{+10}_{-10} km"
+            n.str(unit="m")                         # -> "8848.00 +-10.00 m"
+            n.str(unit="m", force_asymmetric=True)  # -> "8848.00 +10.00-10.00 m"
+            n.str(unit="m", scientific=True)        # -> "8.85 +-0.01 x 1E3 m"
+            n.str(unit="m", si=True)                # -> "8.85 +-0.01 km"
+            n.str(unit="m", style="latex")          # -> "$8848.00\;\pm10.00\;m$"
+            n.str(unit="m", style="latex", si=True) # -> "$8.85\;\pm0.01\;km$"
+            n.str(unit="m", style="root")           # -> "8848.00 #pm 10.00 m"
+            n.str(unit="m", style="root", si=True)  # -> "8.85 #pm 0.01 km"
         """
         if not self.is_numpy:
             # check style
@@ -1577,7 +1579,7 @@ si_refixes = dict(zip(range(-18, 18 + 1, 3),
 
 def infer_si_prefix(f):
     """
-    Infers the SI prefix of a value *f* and return the string label and decimal magnitude in a
+    Infers the SI prefix of a value *f* and returns the string label and decimal magnitude in a
     2-tuple. Example:
 
     .. code-block:: python
@@ -1605,14 +1607,14 @@ _style_dict = {
         "space": r"\;",
         "label": r"\left({label}\right)",
         "sym": r"\pm{unc}",
-        "asym": r"^{{{up}}}_{{{down}}}",
+        "asym": r"^{{+{up}}}_{{-{down}}}",
         "sci": r"\times10^{{{mag}}}",
     },
     "root": {
         "space": " ",
         "label": "#left({label}#right)",
         "sym": "#pm {unc}",
-        "asym": "^{{{up}}}_{{{down}}}",
+        "asym": "^{{+{up}}}_{-{{down}}}",
         "sci": "#times 10^{{{mag}}}",
     },
 }
