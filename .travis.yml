@@ -1,8 +1,6 @@
 sudo: required
 
-dist: precise
-
-language: python
+dist: trusty
 
 services:
   - docker
