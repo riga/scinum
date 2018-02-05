@@ -183,7 +183,7 @@ To run tests in a docker container, do:
 git clone https://github.com/riga/scinum.git
 cd scinum
 
-docker run --rm -v `pwd`:/root/scinum -w /root/scinum -e python:3.6 python -m unittest tests
+docker run --rm -v `pwd`:/root/scinum -w /root/scinum python:3.6 python -m unittest tests
 ```
 
 

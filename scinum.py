@@ -5,15 +5,15 @@ Scientific numbers with multiple uncertainties and correlation-aware, gaussian p
 """
 
 
-__author__     = "Marcel Rieger"
-__email__      = "python-scinum@googlegroups.com"
-__copyright__  = "Copyright 2017, Marcel Rieger"
-__credits__    = ["Marcel Rieger"]
-__contact__    = "https://github.com/riga/scinum"
-__license__    = "MIT"
-__status__     = "Development"
-__version__    = "0.2.1"
-__all__        = ["Number", "Operation", "ops"]
+__author__ = "Marcel Rieger"
+__email__ = "python-scinum@googlegroups.com"
+__copyright__ = "Copyright 2017-2018, Marcel Rieger"
+__credits__ = ["Marcel Rieger"]
+__contact__ = "https://github.com/riga/scinum"
+__license__ = "MIT"
+__status__ = "Development"
+__version__ = "0.2.1"
+__all__ = ["Number", "Operation", "ops"]
 
 
 import sys
@@ -153,7 +153,7 @@ class Number(object):
             "sourceF": (Number.REL, 0.3, Number.ABS, 0.3) # relative 30% up, absolute 0.3 down
         })
 
-        # get the nominal value via direct access 
+        # get the nominal value via direct access
         num.nominal # => 2.5
 
         # get the nominal value via __call__() (same as get())
@@ -431,7 +431,7 @@ class Number(object):
         self._uncertainties.update(uncertainties)
 
     def str(self, format="%.2f", unit=None, scientific=False, si=False, labels=True, style="plain",
-        force_asymmetric=False, **kwargs):
+            force_asymmetric=False, **kwargs):
         """
         Returns a readable string representiation of the number. *format* is used to format
         non-NumPy nominal and uncertainty values. It can be a string such as ``"%d"``, a function
@@ -611,7 +611,7 @@ class Number(object):
                 names = make_list(names)
                 if any(name not in self.uncertainties for name in names):
                     unknown = list(set(names) - set(self.uncertainties.keys()))
-                    raise ValueError("unknown uncertainty name(s): %s" % names)
+                    raise ValueError("unknown uncertainty name(s): %s" % unknown)
 
             # calculate the combined uncertainty without correlation
             idx = int(direction == self.DOWN)
@@ -695,7 +695,7 @@ class Number(object):
             other_unc = other.get_uncertainty(name, default=dflt)
 
             uncs[name] = tuple(combine_uncertainties(op, num_unc[i], other_unc[i],
-                    nom1=num.nominal, nom2=other.nominal, rho=_rho) for i in range(2))
+                nom1=num.nominal, nom2=other.nominal, rho=_rho) for i in range(2))
 
         # store values
         num.nominal = nom
@@ -984,6 +984,7 @@ def add(x, n):
     """
     return x + n
 
+
 @add.derive
 def add(x, n):
     return 1.
@@ -995,6 +996,7 @@ def sub(x, n):
     Subtraction function.
     """
     return x - n
+
 
 @sub.derive
 def sub(x, n):
@@ -1008,6 +1010,7 @@ def mul(x, n):
     """
     return x * n
 
+
 @mul.derive
 def mul(x, n):
     return n
@@ -1019,6 +1022,7 @@ def div(x, n):
     Division function.
     """
     return x / n
+
 
 @div.derive
 def div(x, n):
@@ -1032,6 +1036,7 @@ def pow(x, n):
     """
     return x ** n
 
+
 @pow.derive
 def pow(x, n):
     return n * x ** (n - 1.)
@@ -1043,6 +1048,7 @@ def exp(x):
     Exponential function.
     """
     return infer_math(x).exp(x)
+
 
 exp.derivative = exp.function
 
@@ -1061,6 +1067,7 @@ def log(x, base=None):
         # numpy has no option to set a base
         return _math.log(x) / _math.log(base)
 
+
 @log.derive
 def log(x, base=None):
     if base is None:
@@ -1076,6 +1083,7 @@ def sqrt(x):
     """
     return infer_math(x).sqrt(x)
 
+
 @sqrt.derive
 def sqrt(x):
     return 1. / (2 * infer_math(x).sqrt(x))
@@ -1087,6 +1095,7 @@ def sin(x):
     Trigonometric sin function.
     """
     return infer_math(x).sin(x)
+
 
 @sin.derive
 def sin(x):
@@ -1100,6 +1109,7 @@ def cos(x):
     """
     return infer_math(x).cos(x)
 
+
 @cos.derive
 def cos(x):
     return -infer_math(x).sin(x)
@@ -1111,6 +1121,7 @@ def tan(x):
     Trigonometric tan function.
     """
     return infer_math(x).tan(x)
+
 
 @tan.derive
 def tan(x):
@@ -1128,6 +1139,7 @@ def asin(x):
     else:
         return _math.arcsin(x)
 
+
 @asin.derive
 def asin(x):
     return 1. / infer_math(x).sqrt(1 - x ** 2.)
@@ -1143,6 +1155,7 @@ def acos(x):
         return _math.acos(x)
     else:
         return _math.arccos(x)
+
 
 @acos.derive
 def acos(x):
@@ -1160,6 +1173,7 @@ def atan(x):
     else:
         return _math.arctan(x)
 
+
 @atan.derive
 def atan(x):
     return 1. / (1 + x ** 2.)
@@ -1171,6 +1185,7 @@ def sinh(x):
     Hyperbolic sin function.
     """
     return infer_math(x).sinh(x)
+
 
 @sinh.derive
 def sinh(x):
@@ -1184,6 +1199,7 @@ def cosh(x):
     """
     return infer_math(x).cosh(x)
 
+
 @cosh.derive
 def cosh(x):
     return infer_math(x).sinh(x)
@@ -1195,6 +1211,7 @@ def tanh(x):
     Hyperbolic tan function.
     """
     return infer_math(x).tanh(x)
+
 
 @tanh.derive
 def tanh(x):
@@ -1224,6 +1241,7 @@ def acosh(x):
     else:
         return _math.arccosh(x)
 
+
 asinh.derivative = acosh.function
 acosh.derivative = asinh.function
 
@@ -1239,19 +1257,18 @@ def atanh(x):
     else:
         return _math.arctanh(x)
 
+
 @atanh.derive
 def atanh(x):
     return 1. / (1. - x ** 2.)
 
 
-
-#
 # helper functions
-#
 
 _op_map = {"+": operator.add, "-": operator.sub, "*": operator.mul, "/": operator.truediv,
            "**": operator.pow}
 _op_map_reverse = dict(zip(_op_map.values(), _op_map.keys()))
+
 
 def combine_uncertainties(op, unc1, unc2, nom1=None, nom2=None, rho=0.):
     """
@@ -1286,8 +1303,10 @@ def combine_uncertainties(op, unc1, unc2, nom1=None, nom2=None, rho=0.):
 
     # combined formula
     if op == "**":
-        return nom * abs(nom2) * (unc1 ** 2 + (math.log(nom1) * unc2) ** 2 \
-                                  + 2 * rho * math.log(nom1) * unc1 * unc2) ** 0.5
+        return nom * abs(nom2) * (
+            unc1 ** 2 +
+            (math.log(nom1) * unc2) ** 2 +
+            2 * rho * math.log(nom1) * unc1 * unc2) ** 0.5
     else:
         # flip rho for sub and div
         if op in ("-", "/"):
@@ -1540,13 +1559,13 @@ def round_value(val, unc=None, unc_down=None, method="publication"):
             raise ValueError("down uncertainties must be positive: %s" % (unc_down,))
 
         # to determine the precision, use the uncertainty with the smallest magnitude
-        ref_mag = min(round_uncertainty(unc, method=method)[1] for unc in unc_up + unc_down)
+        ref_mag = min(round_uncertainty(u, method=method)[1] for u in unc_up + unc_down)
 
         # convert the uncertainty and central value to match the reference magnitude
         scale = 1. / 10. ** ref_mag
         val_str = match_precision(scale * val, "1")
-        up_strs = [match_precision(scale * unc, "1") for unc in unc_up]
-        down_strs = [match_precision(scale * unc, "1") for unc in unc_down]
+        up_strs = [match_precision(scale * u, "1") for u in unc_up]
+        down_strs = [match_precision(scale * u, "1") for u in unc_down]
 
         if passed_list:
             return (val_str, [up_strs, down_strs] if asym else [up_strs], ref_mag)
@@ -1573,8 +1592,10 @@ def round_value(val, unc=None, unc_down=None, method="publication"):
         return (val_str, [up_str, down_str] if asym else [up_str], ref_mag)
 
 
-si_refixes = dict(zip(range(-18, 18 + 1, 3),
-    ["a", "f", "p", "n", r"\mu", "m", "", "k", "M", "G", "T", "P", "E"]))
+si_refixes = dict(zip(
+    range(-18, 18 + 1, 3),
+    ["a", "f", "p", "n", r"\mu", "m", "", "k", "M", "G", "T", "P", "E"]
+))
 
 
 def infer_si_prefix(f):

@@ -43,18 +43,18 @@ with open(os.path.join(thisdir, "requirements.txt"), "r") as f:
     install_requires.extend(line.strip() for line in f.readlines() if line.strip())
 
 setup(
-    name             = sn.__name__,
-    version          = sn.__version__,
-    author           = sn.__author__,
-    author_email     = sn.__email__,
-    description      = sn.__doc__.strip(),
-    license          = sn.__license__,
-    url              = sn.__contact__,
-    keywords         = keywords,
-    classifiers      = classifiers,
-    long_description = long_description,
-    install_requires = install_requires,
-    zip_safe         = False,
-    py_modules       = [sn.__name__],
-    data_files       = [(".", ["LICENSE", "requirements.txt", "README.md"])]
+    name=sn.__name__,
+    version=sn.__version__,
+    author=sn.__author__,
+    author_email=sn.__email__,
+    description=sn.__doc__.strip(),
+    license=sn.__license__,
+    url=sn.__contact__,
+    keywords=keywords,
+    classifiers=classifiers,
+    long_description=long_description,
+    install_requires=install_requires,
+    zip_safe=False,
+    py_modules=[sn.__name__],
+    data_files=[(".", ["LICENSE", "requirements.txt", "README.md"])],
 )
