@@ -12,7 +12,7 @@ __credits__ = ["Marcel Rieger"]
 __contact__ = "https://github.com/riga/scinum"
 __license__ = "MIT"
 __status__ = "Development"
-__version__ = "0.2.2"
+__version__ = "0.2.3"
 __all__ = ["Number", "Operation", "ops"]
 
 
@@ -576,7 +576,7 @@ class Number(object):
         if not self.is_numpy:
             text = "'" + self.str(*args, **kwargs) + "'"
         else:
-            text = "%s numpy array, %i uncertainties" % (self.shape, len(self.uncertainties()))
+            text = "%s numpy array, %i uncertainties" % (self.shape, len(self.uncertainties))
 
         tpl = (self.__class__.__name__, hex(id(self)), text)
         return "<%s at %s, %s>" % tpl
