@@ -3,9 +3,7 @@ scinum
 
 .. centered:: This page contains only API docs. For more info, visit `scinum on GitHub <https://github.com/riga/scinum>`_.
 
-
-.. toctree::
-   :maxdepth: 2
+.. contents::
 
 .. automodule:: scinum
 

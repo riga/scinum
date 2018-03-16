@@ -301,10 +301,6 @@ class Number(object):
         if uncertainties is not None:
             self.uncertainties = uncertainties
 
-        if not self.is_numpy:
-            # support for LaTeX rendering in Jupyter
-            setattr(self, '_repr_latex_', functools.partial(self.str, style="latex", si=True))
-
     @typed
     def nominal(self, nominal):
         # parser for the typed member holding the nominal value
@@ -722,6 +718,9 @@ class Number(object):
     def __repr__(self):
         # forward to default repr
         return self.repr()
+
+    def _repr_latex_(self):
+        return self.repr() if self.is_numpy else self.str(style="latex", si=True)
 
     def __contains__(self, name):
         # check whether name is an uncertainty
