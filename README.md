@@ -43,17 +43,12 @@ num = Number(2.5, {
 ```
 
 
-###### Formatting
+###### Formatting and rounding
 
-`Number.str()` provides some simple formatting tools, including `latex` and `root latex` support:
+`Number.str()` provides some simple formatting tools, including `latex` and `root latex` support, as well as scientific rounding rules:
 
 ```python
-n = Number(17.321, {"a": 1.158, "b": 0.453})
-n.str()               # -> '17.32 +1.16-1.16 (a), +0.45-0.45 (b)'
-n.str("%.3f")         # -> '17.321 +1.158-1.158 (a), +0.453-0.453 (b)'
-n.str("publication")  # -> '17.32 +1.16-1.16 (a) +0.45-0.45 (b)'
-n.str("pdg")          # -> '17.3 +1.2-1.2 (a) +0.5-0.5 (b)'
-
+# output formatting
 n = Number(8848, 10)
 n.str(unit="m")                          # -> "8848.00 +-10.00 m"
 n.str(unit="m", force_asymmetric=True)   # -> "8848.00 +10.00-10.00 m"
@@ -63,7 +58,22 @@ n.str(unit="m", style="latex")           # -> "$8848.00\;\pm10.00\;m$"
 n.str(unit="m", style="latex", si=True)  # -> "$8.85\;\pm0.01\;km$"
 n.str(unit="m", style="root")            # -> "8848.00 #pm 10.00 m"
 n.str(unit="m", style="root", si=True)   # -> "8.85 #pm 0.01 km"
+
+# output rounding
+n = Number(17.321, {"a": 1.158, "b": 0.453})
+n.str()               # -> '17.32 +1.16-1.16 (a), +0.45-0.45 (b)'
+n.str("%.3f")         # -> '17.321 +1.158-1.158 (a), +0.453-0.453 (b)'
+n.str("publication")  # -> '17.32 +1.16-1.16 (a) +0.45-0.45 (b)'
+n.str("pdg")          # -> '17.3 +1.2-1.2 (a) +0.5-0.5 (b)'
 ```
+
+For situations that require more sophisticated rounding and formatting rules, you might want to checkout:
+
+- [`sn.split_value()`](http://scinum.readthedocs.io/en/latest/#split-value)
+- [`sn.match_precision()`](http://scinum.readthedocs.io/en/latest/#match-precision)
+- [`sn.round_uncertainty()`](http://scinum.readthedocs.io/en/latest/#round-uncertainty)
+- [`sn.round_value()`](http://scinum.readthedocs.io/en/latest/#round-value)
+- [`sn.infer_si_prefix()`](http://scinum.readthedocs.io/en/latest/#infer-si-prefix)
 
 
 ###### NumPy arrays
@@ -171,9 +181,7 @@ If you like to contribute, I'm happy to receive pull requests. Just make sure to
 In general, tests should be run for different environments:
 
 - Python 2.7
-- Python 3.5
-- Python 3.6
-- Python 3.X + NumPy
+- Python 3.X (X ≥ 5)
 
 
 ##### Docker

@@ -245,13 +245,13 @@ class TestCase(unittest.TestCase):
         num = self.num ** num2
         self.assertAlmostEqual(num(), self.num() ** 5)
         self.assertAlmostEqual(num.u("A", UP), ptgr(
-                5 * self.num() ** 4 * self.num.get_uncertainty("A", UP),
-                num() * math.log(self.num()) * num2.get_uncertainty("A", UP)))
+            5 * self.num() ** 4 * self.num.get_uncertainty("A", UP),
+            num() * math.log(self.num()) * num2.get_uncertainty("A", UP)))
         self.assertAlmostEqual(num.u("B", UP),
-                5 * self.num() ** 4 * self.num.get_uncertainty("B", UP))
+            5 * self.num() ** 4 * self.num.get_uncertainty("B", UP))
         self.assertAlmostEqual(num.u("C", DOWN), ptgr(
-                5 * self.num() ** 4 * self.num.get_uncertainty("C", DOWN),
-                num() * math.log(self.num()) * num2.get_uncertainty("C", DOWN)))
+            5 * self.num() ** 4 * self.num.get_uncertainty("C", DOWN),
+            num() * math.log(self.num()) * num2.get_uncertainty("C", DOWN)))
 
     def test_ops_registration(self):
         self.assertTrue("exp" in ops)
@@ -384,7 +384,8 @@ class TestCase(unittest.TestCase):
 
     @if_numpy
     def test_round_value_numpy(self):
-        val_str, unc_strs, mag = round_value(np.array([1.23, 4.56, 10]), np.array([0.45678, 0.078, 0.998]))
+        val_str, unc_strs, mag = round_value(np.array([1.23, 4.56, 10]),
+            np.array([0.45678, 0.078, 0.998]))
         self.assertEqual(tuple(val_str), ("1230", "4560", "10000"))
         self.assertEqual(tuple(unc_strs[0]), ("457", "78", "998"))
         self.assertEqual(mag, -3)
