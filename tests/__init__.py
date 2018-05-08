@@ -13,8 +13,10 @@ import unittest
 # adjust the path to import scinum
 base = os.path.normpath(os.path.join(os.path.abspath(__file__), "../.."))
 sys.path.append(base)
-from scinum import Number, Operation, ops, HAS_NUMPY, split_value, match_precision, \
-    round_uncertainty, round_value, infer_si_prefix
+from scinum import (
+    Number, ops, HAS_NUMPY, split_value, match_precision, round_uncertainty, round_value,
+    infer_si_prefix,
+)
 
 if HAS_NUMPY:
     import numpy as np
@@ -331,8 +333,8 @@ class TestCase(unittest.TestCase):
     @if_numpy
     def test_match_precision_numpy(self):
         a = np.array([1., 0.123, -42.5, 0.])
-        self.assertEqual(tuple(match_precision(a, "1.")), ("1", "0", "-42", "0"))
-        self.assertEqual(tuple(match_precision(a, ".1")), ("1.0", "0.1", "-42.5", "0.0"))
+        self.assertEqual(tuple(match_precision(a, "1.")), (b"1", b"0", b"-42", b"0"))
+        self.assertEqual(tuple(match_precision(a, ".1")), (b"1.0", b"0.1", b"-42.5", b"0.0"))
 
     def test_round_uncertainty(self):
         self.assertEqual(round_uncertainty(0.352, "pdg"), ("35", -2))
@@ -358,7 +360,7 @@ class TestCase(unittest.TestCase):
     @if_numpy
     def test_round_uncertainty_numpy(self):
         digits, mag = round_uncertainty(np.array([0.123, 0.456, 0.987]))
-        self.assertEqual(tuple(digits), ("123", "46", "987"))
+        self.assertEqual(tuple(digits), (b"123", b"46", b"987"))
         self.assertEqual(tuple(mag), (-3, -2, -3))
 
     def test_round_value(self):
@@ -386,8 +388,8 @@ class TestCase(unittest.TestCase):
     def test_round_value_numpy(self):
         val_str, unc_strs, mag = round_value(np.array([1.23, 4.56, 10]),
             np.array([0.45678, 0.078, 0.998]))
-        self.assertEqual(tuple(val_str), ("1230", "4560", "10000"))
-        self.assertEqual(tuple(unc_strs[0]), ("457", "78", "998"))
+        self.assertEqual(tuple(val_str), (b"1230", b"4560", b"10000"))
+        self.assertEqual(tuple(unc_strs[0]), (b"457", b"78", b"998"))
         self.assertEqual(mag, -3)
 
     def test_infer_si_prefix(self):

@@ -1497,13 +1497,15 @@ def round_uncertainty(unc, method="publication"):
     # infer the precision based on the method and get updated significand and magnitude
     if not is_numpy(unc):
         prec, sig, mag = _infer_precision(unc, sig, mag, meth)
+        replace_args = (".", "")
     else:
         prec = np.ones(unc.shape).astype(np.int)
         for p, u, s, m in np.nditer([prec, unc, sig, mag], op_flags=["readwrite"]):
             p[...], s[...], m[...] = _infer_precision(u, s, m, meth)
+        replace_args = (b".", b"")
 
     # determine the significant digits and the decimal magnitude that would reconstruct the value
-    digits = match_precision(sig, 10. ** (1 - prec)).replace(".", "")
+    digits = match_precision(sig, 10. ** (1 - prec)).replace(*replace_args)
     mag -= prec - 1
 
     return (digits, mag)
