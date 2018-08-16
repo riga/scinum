@@ -90,7 +90,7 @@ print(num)
 # - [ 2.  2.  2.]
 
 num = Number(np.array([3, 4, 5]), {
-    "sourceA": (np.array([0.1, 0.2, 0.3]), REL, 0.5)
+    "sourceA": (np.array([0.1, 0.2, 0.3]), REL, 0.5)  # absolute values for up, 50% down
 })
 print(num)
 # [ 3.  4.  5.]
@@ -112,6 +112,7 @@ num2 = Number(2.5, 1.5)
 print(num + num2)  # -> 7.50 (+1.80, -1.80)
 print(num * num2)  # -> 12.50 (+7.91, -7.91)
 
+# add num2 to num and consider their uncertainties to be fully correlated, i.e. rho = 1
 num.add(num2, rho=1)
 print(num)  # -> 7.5 (+2.50, -2.50)
 ```
@@ -151,7 +152,7 @@ num = ops.my_op(Number(5, 2))
 print(num)  # -> 11.00 (+4.00, -4.00)
 ```
 
-Please note that there is no need to register *simple* functions as in the particular example above as most of them are just composite operations whose propagation rules (derivatives) are already known.
+Please note that there is no need to register *simple* functions like in the particular example above as most of them are just composite operations whose propagation rules (derivatives) are already known.
 
 
 ### Installation and dependencies
@@ -202,9 +203,9 @@ docker run --rm -v `pwd`:/root/scinum -w /root/scinum python:3.6 python -m unitt
 - Report issues, questions, feature requests on [GitHub Issues](https://github.com/riga/scinum/issues)
 
 
-### Authors
+### Contributors
 
-- [Marcel Rieger](https://github.com/riga)
+- [Marcel R.](https://github.com/riga) (author)
 
 
 ### License
