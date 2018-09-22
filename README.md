@@ -13,8 +13,7 @@ The following examples demonstrate the most common use cases. For more info, see
 ###### Number definition
 
 ```python
-from scinum import Number
-UP = Number.UP
+from scinum import Number, UP, DOWN
 
 num = Number(5, (2, 1))
 print(num)                    # -> 5.00 +2.00-1.00
@@ -29,8 +28,7 @@ print(num.u(direction=UP))    # -> 2.0
 ###### Multiple uncertainties
 
 ```python
-from scinum import Number
-ABS, REL = Number.ABS, Number.REL
+from scinum import Number, ABS, REL
 
 num = Number(2.5, {
     "sourceA": 0.5,                  # absolute 0.5, both up and down
@@ -79,8 +77,7 @@ For situations that require more sophisticated rounding and formatting rules, yo
 ###### NumPy arrays
 
 ```python
-from scinum import Number
-ABS, REL = Number.ABS, Number.REL
+from scinum import Number, ABS, REL
 import numpy as np
 
 num = Number(np.array([3, 4, 5]), 2)

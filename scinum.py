@@ -13,7 +13,7 @@ __contact__ = "https://github.com/riga/scinum"
 __license__ = "MIT"
 __status__ = "Development"
 __version__ = "0.2.3"
-__all__ = ["Number", "Operation", "ops"]
+__all__ = ["Number", "Operation", "ops", "REL", "ABS", "NOMINAL", "UP", "DOWN"]
 
 
 import sys
@@ -144,13 +144,15 @@ class Number(object):
 
     .. code-block:: python
 
+        from scinum import Number, REL, ABS, UP, DOWN
+
         num = Number(2.5, {
-            "sourceA": 0.5,                               # absolute 0.5, both up and down
-            "sourceB": (1.0, 1.5),                        # absolute 1.0 up, 1.5 down
-            "sourceC": (Number.REL, 0.1),                 # relative 10%, both up and down
-            "sourceD": (Number.REL, 0.1, 0.2),            # relative 10% up, 20% down
-            "sourceE": (1.0, Number.REL, 0.2),            # absolute 1.0 up, relative 20% down
-            "sourceF": (Number.REL, 0.3, Number.ABS, 0.3) # relative 30% up, absolute 0.3 down
+            "sourceA": 0.5,                 # absolute 0.5, both up and down
+            "sourceB": (1.0, 1.5),          # absolute 1.0 up, 1.5 down
+            "sourceC": (REL, 0.1),          # relative 10%, both up and down
+            "sourceD": (REL, 0.1, 0.2),     # relative 10% up, 20% down
+            "sourceE": (1.0, REL, 0.2),     # absolute 1.0 up, relative 20% down
+            "sourceF": (REL, 0.3, ABS, 0.3) # relative 30% up, absolute 0.3 down
         })
 
         # get the nominal value via direct access
@@ -169,19 +171,19 @@ class Number(object):
         num.get_uncertainty("sourceF") # => (0.75, 0.3)
 
         # get shifted values via __call__() (same as get())
-        num(Number.UP, "sourceA")              # => 3.0
-        num(Number.DOWN, "sourceB")            # => 1.0
-        num(Number.UP, ("sourceC", "sourceD")) # => 2.854...
-        num(Number.UP, Number.ALL)             # => 4.214...
+        num(UP, "sourceA")              # => 3.0
+        num(DOWN, "sourceB")            # => 1.0
+        num(UP, ("sourceC", "sourceD")) # => 2.854...
+        num(UP)                         # => 4.214... (all uncertainties)
 
         # get only the uncertainty (unsigned)
-        num(Number.DOWN, ("sourceE", "sourceF"), diff=True) # => 0.583...
+        num(DOWN, ("sourceE", "sourceF"), diff=True) # => 0.583...
 
         # get the uncertainty factor (unsigned)
-        num(Number.DOWN, ("sourceE", "sourceF"), factor=True) # => 1.233...
+        num(DOWN, ("sourceE", "sourceF"), factor=True) # => 1.233...
 
         # combined
-        num(Number.DOWN, ("sourceE", "sourceF"), diff=True, factor=True) # => 0.233...
+        num(DOWN, ("sourceE", "sourceF"), diff=True, factor=True) # => 0.233...
 
     When *uncertainties* is not a dictionary, it is interpreted as the *default* uncertainty, named
     ``Number.DEFAULT``.
@@ -831,6 +833,14 @@ class Number(object):
 
     def __ipow__(self, other):
         return self.pow(other, inplace=True)
+
+
+# module-wide shorthands for Number flags
+REL = Number.REL
+ABS = Number.ABS
+NOMINAL = Number.NOMINAL
+UP = Number.UP
+DOWN = Number.DOWN
 
 
 class Operation(object):
