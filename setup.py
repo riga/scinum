@@ -2,28 +2,15 @@
 
 
 import os
-import sys
-from subprocess import Popen, PIPE
 from setuptools import setup
 
 import scinum as sn
 
 
-thisdir = os.path.dirname(os.path.abspath(__file__))
-
-readme = os.path.join(thisdir, "README.md")
-if os.path.isfile(readme) and "sdist" in sys.argv:
-    cmd = "pandoc --from=markdown --to=rst " + readme
-    p = Popen(cmd, shell=True, stdout=PIPE, stderr=PIPE)
-    out, err = p.communicate()
-    if p.returncode != 0:
-        raise Exception("pandoc conversion failed: " + err)
-    long_description = out
-else:
-    long_description = ""
+this_dir = os.path.dirname(os.path.abspath(__file__))
 
 keywords = [
-    "scientific", "numbers", "error", "systematics", "propagation"
+    "scientific", "numbers", "error", "systematics", "propagation",
 ]
 
 classifiers = [
@@ -35,12 +22,16 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Intended Audience :: Developers",
     "Intended Audience :: Science/Research",
-    "Intended Audience :: Information Technology"
+    "Intended Audience :: Information Technology",
 ]
 
-install_requires = []
-with open(os.path.join(thisdir, "requirements.txt"), "r") as f:
-    install_requires.extend(line.strip() for line in f.readlines() if line.strip())
+# read the readme file
+with open(os.path.join(this_dir, "README.md"), "r") as f:
+    long_description = f.read()
+
+# load installation requirements
+with open(os.path.join(this_dir, "requirements.txt"), "r") as f:
+    install_requires = [line.strip() for line in f.readlines() if line.strip()]
 
 setup(
     name=sn.__name__,
@@ -53,7 +44,9 @@ setup(
     keywords=keywords,
     classifiers=classifiers,
     long_description=long_description,
+    long_description_content_type="text/markdown",
     install_requires=install_requires,
+    python_requires=">=2.7",
     zip_safe=False,
     py_modules=[sn.__name__],
     data_files=[(".", ["LICENSE", "requirements.txt", "README.md"])],
