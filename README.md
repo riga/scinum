@@ -48,21 +48,21 @@ num = Number(2.5, {
 ```python
 # output formatting
 n = Number(8848, 10)
-n.str(unit="m")                          # -> "8848.00 +-10.00 m"
-n.str(unit="m", force_asymmetric=True)   # -> "8848.00 +10.00-10.00 m"
-n.str(unit="m", scientific=True)         # -> "8.85 +-0.01 x 1E3 m"
-n.str(unit="m", si=True)                 # -> "8.85 +-0.01 km"
-n.str(unit="m", style="latex")           # -> "$8848.00\;\pm10.00\;m$"
-n.str(unit="m", style="latex", si=True)  # -> "$8.85\;\pm0.01\;km$"
-n.str(unit="m", style="root")            # -> "8848.00 #pm 10.00 m"
-n.str(unit="m", style="root", si=True)   # -> "8.85 #pm 0.01 km"
+n.str(unit="m")                          # -> "8848.0 +- 10.0 m"
+n.str(unit="m", force_asymmetric=True)   # -> "8848.0 +10.0-10.0 m"
+n.str(unit="m", scientific=True)         # -> "8.848 +- 0.01 x 1E3 m"
+n.str(unit="m", si=True)                 # -> "8.848 +- 0.01 km"
+n.str(unit="m", style="latex")           # -> "$8848.0\;\pm\;10.0\;m$"
+n.str(unit="m", style="latex", si=True)  # -> "$8.848\;\pm\;0.01\;km$"
+n.str(unit="m", style="root")            # -> "8848.0 #pm 10.0 m"
+n.str(unit="m", style="root", si=True)   # -> "8.848 #pm 0.01 km"
 
 # output rounding
 n = Number(17.321, {"a": 1.158, "b": 0.453})
-n.str()               # -> '17.32 +1.16-1.16 (a), +0.45-0.45 (b)'
-n.str("%.3f")         # -> '17.321 +1.158-1.158 (a), +0.453-0.453 (b)'
-n.str("publication")  # -> '17.32 +1.16-1.16 (a) +0.45-0.45 (b)'
-n.str("pdg")          # -> '17.3 +1.2-1.2 (a) +0.5-0.5 (b)'
+n.str()               # -> '17.321 +- 1.158 (a) +- 0.453 (b)'
+n.str("%.1f")         # -> '17.3 +- 1.2 (a) +- 0.5 (b)'
+n.str("publication")  # -> '17.32 +- 1.16 (a) +- 0.45 (b)'
+n.str("pdg")          # -> '17.3 +- 1.2 (a) +- 0.5 (b)'
 ```
 
 For situations that require more sophisticated rounding and formatting rules, you might want to checkout:
@@ -102,16 +102,16 @@ print(num)
 from scinum import Number
 
 num = Number(5, 1)
-print(num + 2)  # -> 7.00 (+1.00, -1.00)
-print(num * 3)  # -> 15.00 (+3.00, -3.00)
+print(num + 2)  # -> '7.0 +- 1.0'
+print(num * 3)  # -> '15.0 +- 3.0'
 
 num2 = Number(2.5, 1.5)
-print(num + num2)  # -> 7.50 (+1.80, -1.80)
-print(num * num2)  # -> 12.50 (+7.91, -7.91)
+print(num + num2)  # -> '7.5 +- 1.80277563773'
+print(num * num2)  # -> '12.5 +- 7.90569415042'
 
 # add num2 to num and consider their uncertainties to be fully correlated, i.e. rho = 1
 num.add(num2, rho=1)
-print(num)  # -> 7.5 (+2.50, -2.50)
+print(num)  # -> '7.5 +- 2.5'
 ```
 
 

@@ -147,48 +147,48 @@ class Number(object):
         from scinum import Number, REL, ABS, UP, DOWN
 
         num = Number(2.5, {
-            "sourceA": 0.5,                 # absolute 0.5, both up and down
-            "sourceB": (1.0, 1.5),          # absolute 1.0 up, 1.5 down
-            "sourceC": (REL, 0.1),          # relative 10%, both up and down
-            "sourceD": (REL, 0.1, 0.2),     # relative 10% up, 20% down
-            "sourceE": (1.0, REL, 0.2),     # absolute 1.0 up, relative 20% down
-            "sourceF": (REL, 0.3, ABS, 0.3) # relative 30% up, absolute 0.3 down
+            "sourceA": 0.5,                  # absolute 0.5, both up and down
+            "sourceB": (1.0, 1.5),           # absolute 1.0 up, 1.5 down
+            "sourceC": (REL, 0.1),           # relative 10%, both up and down
+            "sourceD": (REL, 0.1, 0.2),      # relative 10% up, 20% down
+            "sourceE": (1.0, REL, 0.2),      # absolute 1.0 up, relative 20% down
+            "sourceF": (REL, 0.3, ABS, 0.3)  # relative 30% up, absolute 0.3 down
         })
 
         # get the nominal value via direct access
         num.nominal # => 2.5
 
         # get the nominal value via __call__() (same as get())
-        num()                    # => 2.5
-        num(direction="nominal") # => 2.5
+        num()                     # => 2.5
+        num(direction="nominal")  # => 2.5
 
         # get uncertainties
-        num.get_uncertainty("sourceA") # => (0.5, 0.5)
-        num.get_uncertainty("sourceB") # => (1.0, 1.5)
-        num.get_uncertainty("sourceC") # => (0.25, 0.25)
-        num.get_uncertainty("sourceD") # => (0.25, 0.5)
-        num.get_uncertainty("sourceE") # => (1.0, 0.5)
-        num.get_uncertainty("sourceF") # => (0.75, 0.3)
+        num.get_uncertainty("sourceA")  # => (0.5, 0.5)
+        num.get_uncertainty("sourceB")  # => (1.0, 1.5)
+        num.get_uncertainty("sourceC")  # => (0.25, 0.25)
+        num.get_uncertainty("sourceD")  # => (0.25, 0.5)
+        num.get_uncertainty("sourceE")  # => (1.0, 0.5)
+        num.get_uncertainty("sourceF")  # => (0.75, 0.3)
 
         # get shifted values via __call__() (same as get())
-        num(UP, "sourceA")              # => 3.0
-        num(DOWN, "sourceB")            # => 1.0
-        num(UP, ("sourceC", "sourceD")) # => 2.854...
-        num(UP)                         # => 4.214... (all uncertainties)
+        num(UP, "sourceA")               # => 3.0
+        num(DOWN, "sourceB")             # => 1.0
+        num(UP, ("sourceC", "sourceD"))  # => 2.854...
+        num(UP)                          # => 4.214... (all uncertainties)
 
         # get only the uncertainty (unsigned)
-        num(DOWN, ("sourceE", "sourceF"), diff=True) # => 0.583...
+        num(DOWN, ("sourceE", "sourceF"), diff=True)  # => 0.583...
 
         # get the uncertainty factor (unsigned)
-        num(DOWN, ("sourceE", "sourceF"), factor=True) # => 1.233...
+        num(DOWN, ("sourceE", "sourceF"), factor=True)  # => 1.233...
 
         # combined
-        num(DOWN, ("sourceE", "sourceF"), diff=True, factor=True) # => 0.233...
+        num(DOWN, ("sourceE", "sourceF"), diff=True, factor=True)  # => 0.233...
 
     When *uncertainties* is not a dictionary, it is interpreted as the *default* uncertainty, named
     ``Number.DEFAULT``.
 
-    This class re-defines most of Python's magic functions to allow transparent use in standard
+    This class redefines most of Python's magic functions to allow transparent use in standard
     operations like ``+``, ``*``, etc. Gaussian uncertainty propagation is applied automatically.
     When operations connect two number instances, their uncertainties are combined assuming there is
     no correlation. For correlation-aware operations, please refer to methods such as :py:meth:`add`
@@ -197,15 +197,17 @@ class Number(object):
     .. code-block:: python
 
         num = Number(5, 1)
-        print(num + 2) # -> 7.00 (+1.00, -1.00)
-        print(num * 3) # -> 15.00 (+3.00, -3.00)
+        print(num + 2)  # -> '7.0 +- 1.0'
+        print(num * 3)  # -> '15.0 +- 3.0'
 
         num2 = Number(2.5, 1.5)
-        print(num + num2) # -> 7.50 (+1.80, -1.80)
-        print(num * num2) # -> 12.50 (+7.91, -7.91)
+        print(num + num2)  # -> '7.5 +- 1.80277563773'
+        print(num * num2)  # -> '12.5 +- 7.90569415042'
 
         num.add(num2, rho=1)
-        print(num) # -> 7.5 (+2.50, -2.50)
+        print(num)  # -> '7.5 +- 2.5'
+
+    See :py:meth:`str` for information on string formatting.
 
     .. py:attribute:: DEFAULT
        classmember
@@ -456,20 +458,20 @@ class Number(object):
         .. code-block:: python
 
             n = Number(17.321, {"a": 1.158, "b": 0.453})
-            n.str()              # -> '17.321 +- 1.158 (a) +- 0.453 (b)'
-            n.str("%.1f")        # -> '17.3 +- 1.2 (a) +- 0.5 (b)'
-            n.str("publication") # -> '17.32 +- 1.16 (a) +- 0.45 (b)'
-            n.str("pdg")         # -> '17.3 +- 1.2 (a) +- 0.5 (b)'
+            n.str()               # -> '17.321 +- 1.158 (a) +- 0.453 (b)'
+            n.str("%.1f")         # -> '17.3 +- 1.2 (a) +- 0.5 (b)'
+            n.str("publication")  # -> '17.32 +- 1.16 (a) +- 0.45 (b)'
+            n.str("pdg")          # -> '17.3 +- 1.2 (a) +- 0.5 (b)'
 
             n = Number(8848, 10)
-            n.str(unit="m")                         # -> "8848.0 +- 10.0 m"
-            n.str(unit="m", force_asymmetric=True)  # -> "8848.0 +10.0-10.0 m"
-            n.str(unit="m", scientific=True)        # -> "8.848 +- 0.01 x 1E3 m"
-            n.str(unit="m", si=True)                # -> "8.848 +- 0.01 km"
-            n.str(unit="m", style="latex")          # -> "$8848.0\;\pm\;10.0\;m$"
-            n.str(unit="m", style="latex", si=True) # -> "$8.848\;\pm\;0.01\;km$"
-            n.str(unit="m", style="root")           # -> "8848.0 #pm 10.0 m"
-            n.str(unit="m", style="root", si=True)  # -> "8.848 #pm 0.01 km"
+            n.str(unit="m")                          # -> "8848.0 +- 10.0 m"
+            n.str(unit="m", force_asymmetric=True)   # -> "8848.0 +10.0-10.0 m"
+            n.str(unit="m", scientific=True)         # -> "8.848 +- 0.01 x 1E3 m"
+            n.str(unit="m", si=True)                 # -> "8.848 +- 0.01 km"
+            n.str(unit="m", style="latex")           # -> "$8848.0\;\pm\;10.0\;m$"
+            n.str(unit="m", style="latex", si=True)  # -> "$8.848\;\pm\;0.01\;km$"
+            n.str(unit="m", style="root")            # -> "8848.0 #pm 10.0 m"
+            n.str(unit="m", style="root", si=True)   # -> "8.848 #pm 0.01 km"
         """
         if not self.is_numpy:
             # check style
