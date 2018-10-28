@@ -12,7 +12,7 @@ __credits__ = ["Marcel Rieger"]
 __contact__ = "https://github.com/riga/scinum"
 __license__ = "MIT"
 __status__ = "Development"
-__version__ = "0.2.3"
+__version__ = "0.2.4"
 __all__ = ["Number", "Operation", "ops", "REL", "ABS", "NOMINAL", "UP", "DOWN"]
 
 
@@ -437,7 +437,7 @@ class Number(object):
         """
         Returns a readable string representiation of the number. *format* is used to format
         non-NumPy nominal and uncertainty values. It can be a string such as ``"%d"``, a function
-        that is passed the value to format, or a rounding method as accepted by
+        that is called with the value to format, or a rounding method as accepted by
         :py:meth:`round_value`. All keyword arguments except wildcard *kwargs* are only used to
         format non-NumPy values. In case of NumPy objects, *kwargs* are passed to
         `numpy.array2string
@@ -446,10 +446,10 @@ class Number(object):
         When *unit* is set, it is appended to the end of the string. When *scientific* is *True*,
         all values are represented by their scientific notation. When *scientific* is *False* and
         *si* is *True*, the appropriate SI prefix is used. *labels* controls whether uncertainty
-        labels are show in the string. When *True*, uncertainty names are used, but it can also
+        labels are shown in the string. When *True*, uncertainty names are used, but it can also
         be a list of labels whose order should match the uncertainty dict traversal order. *style*
         can be *"plain"*, *"latex"*, or *"root"*. Unless *force_asymmetric* is *True*, an
-        uncertainty is quoted as being symmetric if it yields identical values in both directions.
+        uncertainty is quoted symmetric if it yields identical values in both directions.
 
         Examples:
 
@@ -462,11 +462,11 @@ class Number(object):
             n.str("pdg")         # -> '17.3 +1.2-1.2 (a) +0.5-0.5 (b)'
 
             n = Number(8848, 10)
-            n.str(unit="m")                         # -> "8848.00 +-10.00 m"
+            n.str(unit="m")                         # -> "8848.00 +- 10.00 m"
             n.str(unit="m", force_asymmetric=True)  # -> "8848.00 +10.00-10.00 m"
             n.str(unit="m", scientific=True)        # -> "8.85 +-0.01 x 1E3 m"
             n.str(unit="m", si=True)                # -> "8.85 +-0.01 km"
-            n.str(unit="m", style="latex")          # -> "$8848.00\;\pm10.00\;m$"
+            n.str(unit="m", style="latex")          # -> "$8848.00\;\pm\;10.00\;m$"
             n.str(unit="m", style="latex", si=True) # -> "$8.85\;\pm0.01\;km$"
             n.str(unit="m", style="root")           # -> "8848.00 #pm 10.00 m"
             n.str(unit="m", style="root", si=True)  # -> "8.85 #pm 0.01 km"
@@ -552,7 +552,9 @@ class Number(object):
                 text = "$" + text + "$"
 
             return text
+
         else:
+            # we are dealing with a numpy array here
             # start with nominal text
             text = np.array2string(self.nominal, **kwargs)
 
@@ -722,7 +724,7 @@ class Number(object):
         return self.repr()
 
     def _repr_latex_(self):
-        return self.repr() if self.is_numpy else self.str(style="latex", si=True)
+        return self.repr() if self.is_numpy else self.str(style="latex")
 
     def __contains__(self, name):
         # check whether name is an uncertainty
@@ -1635,14 +1637,14 @@ _style_dict = {
     "plain": {
         "space": " ",
         "label": "({label})",
-        "sym": "+-{unc}",
+        "sym": "+- {unc}",
         "asym": "+{up}-{down}",
         "sci": "x 1E{mag}",
     },
     "latex": {
         "space": r"\;",
         "label": r"\left(\text{{{label}}}\right)",
-        "sym": r"\pm{unc}",
+        "sym": r"\pm\;{unc}",
         "asym": r"^{{+{up}}}_{{-{down}}}",
         "sci": r"\times10^{{{mag}}}",
     },
