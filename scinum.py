@@ -486,7 +486,7 @@ class Number(object):
                     mag = 0 if self.nominal == 0 else int(math.floor(math.log10(abs(self.nominal))))
                 else:
                     prefix, mag = infer_si_prefix(self.nominal)
-                transform = lambda x: x * 10. ** -mag
+                transform = lambda x: x * 10.**(-mag)
 
             # gather and transform values
             nominal = transform(self.nominal)
@@ -499,7 +499,7 @@ class Number(object):
             # special formats implemented by round_value
             if format in ("pub", "publication", "pdg", "one", "onedigit"):
                 nominal, (ups, downs), _mag = round_value(self.nominal, ups, downs, method=format)
-                fmt = lambda x: match_precision(float(x) * 10. ** _mag, 10. ** _mag)
+                fmt = lambda x: match_precision(float(x) * 10.**_mag, 10.**_mag)
 
             # string formatting
             elif not callable(format):
@@ -620,7 +620,7 @@ class Number(object):
             # calculate the combined uncertainty without correlation
             idx = int(direction == self.DOWN)
             uncs = [self.uncertainties[name][idx] for name in names]
-            unc = sum(u ** 2. for u in uncs) ** 0.5
+            unc = sum(u**2. for u in uncs)**0.5
 
             # determine the output value
             if diff:
@@ -1049,12 +1049,12 @@ def pow(x, n):
     """ pow(x, n)
     Power function.
     """
-    return x ** n
+    return x**n
 
 
 @pow.derive
 def pow(x, n):
-    return n * x ** (n - 1.)
+    return n * x**(n - 1.)
 
 
 @ops.register
@@ -1140,7 +1140,7 @@ def tan(x):
 
 @tan.derive
 def tan(x):
-    return 1. / infer_math(x).cos(x) ** 2
+    return 1. / infer_math(x).cos(x)**2.
 
 
 @ops.register
@@ -1157,7 +1157,7 @@ def asin(x):
 
 @asin.derive
 def asin(x):
-    return 1. / infer_math(x).sqrt(1 - x ** 2.)
+    return 1. / infer_math(x).sqrt(1 - x**2.)
 
 
 @ops.register
@@ -1174,7 +1174,7 @@ def acos(x):
 
 @acos.derive
 def acos(x):
-    return -1. / infer_math(x).sqrt(1 - x ** 2.)
+    return -1. / infer_math(x).sqrt(1 - x**2.)
 
 
 @ops.register
@@ -1191,7 +1191,7 @@ def atan(x):
 
 @atan.derive
 def atan(x):
-    return 1. / (1 + x ** 2.)
+    return 1. / (1 + x**2.)
 
 
 @ops.register
@@ -1230,7 +1230,7 @@ def tanh(x):
 
 @tanh.derive
 def tanh(x):
-    return 1. / infer_math(x).cosh(x) ** 2
+    return 1. / infer_math(x).cosh(x)**2.
 
 
 @ops.register
@@ -1275,13 +1275,19 @@ def atanh(x):
 
 @atanh.derive
 def atanh(x):
-    return 1. / (1. - x ** 2.)
+    return 1. / (1. - x**2.)
 
 
 # helper functions
 
-_op_map = {"+": operator.add, "-": operator.sub, "*": operator.mul, "/": operator.truediv,
-           "**": operator.pow}
+_op_map = {
+    "+": operator.add,
+    "-": operator.sub,
+    "*": operator.mul,
+    "/": operator.truediv,
+    "**": operator.pow,
+}
+
 _op_map_reverse = dict(zip(_op_map.values(), _op_map.keys()))
 
 
@@ -1318,15 +1324,13 @@ def combine_uncertainties(op, unc1, unc2, nom1=None, nom2=None, rho=0.):
 
     # combined formula
     if op == "**":
-        return nom * abs(nom2) * (
-            unc1 ** 2 +
-            (math.log(nom1) * unc2) ** 2 +
-            2 * rho * math.log(nom1) * unc1 * unc2) ** 0.5
+        return nom * abs(nom2) * (unc1**2. + (math.log(nom1) * unc2)**2. + 2 * rho *
+            math.log(nom1) * unc1 * unc2)**0.5
     else:
         # flip rho for sub and div
         if op in ("-", "/"):
             rho = -rho
-        return nom * (unc1 ** 2. + unc2 ** 2. + 2. * rho * unc1 * unc2) ** 0.5
+        return nom * (unc1**2. + unc2**2. + 2. * rho * unc1 * unc2)**0.5
 
 
 def ensure_number(num, *args, **kwargs):
@@ -1390,7 +1394,7 @@ def split_value(val):
         split_value(a) # -> ([1., 1.23, -4.25], [0, -1, 1])
 
     The significand will be a float while magnitude will be an integer. *val* can be reconstructed
-    via ``significand * 10 ** magnitude``.
+    via ``significand * 10**magnitude``.
     """
     val = ensure_nominal(val)
 
@@ -1400,13 +1404,13 @@ def split_value(val):
             return (0., 0)
 
         mag = int(math.floor(math.log10(abs(val))))
-        sig = float(val) / (10. ** mag)
+        sig = float(val) / (10.**mag)
 
     else:
         log = np.zeros(val.shape)
         np.log10(np.abs(val), out=log, where=(val != 0))
         mag = np.floor(log).astype(np.int)
-        sig = val.astype(np.float) / (10. ** mag)
+        sig = val.astype(np.float) / (10.**mag)
 
     return (sig, mag)
 
@@ -1517,7 +1521,7 @@ def round_uncertainty(unc, method="publication"):
         replace_args = (b".", b"")
 
     # determine the significant digits and the decimal magnitude that would reconstruct the value
-    digits = match_precision(sig, 10. ** (1 - prec)).replace(*replace_args)
+    digits = match_precision(sig, 10.**(1 - prec)).replace(*replace_args)
     mag -= prec - 1
 
     return (digits, mag)
@@ -1579,7 +1583,7 @@ def round_value(val, unc=None, unc_down=None, method="publication"):
         ref_mag = min(round_uncertainty(u, method=method)[1] for u in unc_up + unc_down)
 
         # convert the uncertainty and central value to match the reference magnitude
-        scale = 1. / 10. ** ref_mag
+        scale = 1. / 10.**ref_mag
         val_str = match_precision(scale * val, "1")
         up_strs = [match_precision(scale * u, "1") for u in unc_up]
         down_strs = [match_precision(scale * u, "1") for u in unc_down]
@@ -1601,7 +1605,7 @@ def round_value(val, unc=None, unc_down=None, method="publication"):
         ref_mag_down = round_uncertainty(unc_down, method=method)[1]
         ref_mag = min(ref_mag_up.min(), ref_mag_down.min())
 
-        scale = 1. / 10. ** ref_mag
+        scale = 1. / 10.**ref_mag
         val_str = match_precision(scale * val, "1")
         up_str = match_precision(scale * unc_up, "1")
         down_str = match_precision(scale * unc_down, "1")
