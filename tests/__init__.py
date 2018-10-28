@@ -105,17 +105,17 @@ class TestCase(unittest.TestCase):
         self.assertEqual(num.u(direction=UP).shape, (3,))
 
     def test_strings(self):
-        self.assertEqual(len(self.num.str()), 100)
+        self.assertEqual(len(self.num.str()), 91)
         self.assertEqual(len(self.num.str("%.3f")), 112)
 
-        self.assertEqual(len(self.num.repr().split(" ", 3)[-1]), 103)
+        self.assertEqual(len(self.num.repr().split(" ", 3)[-1]), 94)
 
         num = self.num.copy()
         num.uncertainties = {}
 
-        self.assertEqual(len(num.str()), 23)
+        self.assertEqual(len(num.str()), 22)
         self.assertTrue(num.str().endswith(" (no uncertainties)"))
-        self.assertEqual(len(num.repr().split(" ", 3)[-1]), 26)
+        self.assertEqual(len(num.repr().split(" ", 3)[-1]), 25)
 
     def test_uncertainty_parsing(self):
         uncs = {}
