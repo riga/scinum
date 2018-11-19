@@ -31,7 +31,9 @@ print(num.u(direction=UP))    # -> 2.0
 # get shifted values
 print(num.get())              # -> 5.0 (no shift)
 print(num.get(UP))            # -> 7.0 (up shift)
+print(num(UP))                # -> 7.0 (up shift, shorthand)
 print(num.get(DOWN))          # -> 4.0 (down shift)
+print(num(DOWN))              # -> 4.0 (down shift, shorthand)
 ```
 
 
