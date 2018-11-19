@@ -17,11 +17,21 @@ from scinum import Number, UP, DOWN
 
 num = Number(5, (2, 1))
 print(num)                    # -> 5.00 +2.00-1.00
+
+# get the nominal value
 print(num.nominal)            # -> 5.0
 print(num.n)                  # -> 5.0 (shorthand)
+print(num())                  # -> 5.0 (shorthand)
+
+# get uncertainties
 print(num.get_uncertainty())  # -> (2.0, 1.0)
 print(num.u())                # -> (2.0, 1.0) (shorthand)
 print(num.u(direction=UP))    # -> 2.0
+
+# get shifted values
+print(num.get())              # -> 5.0 (no shift)
+print(num.get(UP))            # -> 7.0 (up shift)
+print(num.get(DOWN))          # -> 4.0 (down shift)
 ```
 
 
