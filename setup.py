@@ -38,7 +38,7 @@ setup(
     version=sn.__version__,
     author=sn.__author__,
     author_email=sn.__email__,
-    description=sn.__doc__.strip(),
+    description=sn.__doc__.strip().split("\n")[0].strip(),
     license=sn.__license__,
     url=sn.__contact__,
     keywords=keywords,
