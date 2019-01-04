@@ -12,7 +12,8 @@ import scinum as sn
 project = "scinum"
 author = sn.__author__
 copyright = sn.__copyright__
-version = sn.__version__
+copyright = copyright[10:] if copyright.startswith("Copyright ") else copyright
+version = sn.__version__[:sn.__version__.index(".", 2)]
 release = sn.__version__
 language = "en"
 
