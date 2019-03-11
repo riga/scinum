@@ -1,4 +1,4 @@
-<img src="https://raw.githubusercontent.com/riga/scinum/master/logo.png" alt="scinum logo" width="250"/>
+![scinum logo](https://raw.githubusercontent.com/riga/scinum/master/logo250.png "scinum logo")
 
 [![Build Status](https://travis-ci.org/riga/scinum.svg?branch=master)](https://travis-ci.org/riga/scinum) [![Documentation Status](https://readthedocs.org/projects/scinum/badge/?version=latest)](http://scinum.readthedocs.org/en/latest/?badge=latest) [![Package Status](https://badge.fury.io/py/scinum.svg)](https://badge.fury.io/py/scinum) [![License](https://img.shields.io/github/license/riga/scinum.svg)](https://github.com/riga/scinum/blob/master/LICENSE) [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/riga/scinum/master?filepath=example.ipynb)
 
