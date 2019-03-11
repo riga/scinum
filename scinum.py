@@ -13,7 +13,7 @@ __contact__ = "https://github.com/riga/scinum"
 __license__ = "BSD-3-Clause"
 __status__ = "Development"
 __version__ = "0.2.8"
-__all__ = ["Number", "Operation", "ops", "REL", "ABS", "NOMINAL", "UP", "DOWN"]
+__all__ = ["Number", "Operation", "ops", "style_dict", "REL", "ABS", "NOMINAL", "UP", "DOWN"]
 
 
 import sys
@@ -33,24 +33,23 @@ except ImportError:
 
 
 # version related adjustments
-if sys.version_info > (3, 0):
-    basestring = str
+string_types = (str,)
+if sys.version_info < (3, 0):
+    string_types += (basestring,)
 
 
 # metaclass decorator from six package, credits to Benjamin Peterson
-def add_metaclass(metaclass):
-    def wrapper(cls):
-        orig_vars = cls.__dict__.copy()
-        slots = orig_vars.get("__slots__")
-        if slots is not None:
-            if isinstance(slots, str):
-                slots = [slots]
-            for slots_var in slots:
-                orig_vars.pop(slots_var)
-        orig_vars.pop("__dict__", None)
-        orig_vars.pop("__weakref__", None)
-        return metaclass(cls.__name__, cls.__bases__, orig_vars)
-    return wrapper
+def with_metaclass(meta, *bases):
+    class metaclass(type):
+
+        def __new__(cls, name, this_bases, d):
+            return meta(name, bases, d)
+
+        @classmethod
+        def __prepare__(cls, name, this_bases):
+            return meta.__prepare__(name, bases)
+
+    return type.__new__(metaclass, "temporary_class", (), {})
 
 
 class typed(property):
@@ -68,13 +67,13 @@ class typed(property):
             @typed
             def foo(self, foo):
                 if not isinstance(foo, str):
-                    raise TypeError("not a string: '%s'" % foo)
+                    raise TypeError("not a string: {}".format(foo))
                 return foo
 
         myInstance = MyClass()
-        myInstance.foo = 123   -> TypeError
-        myInstance.foo = "bar" -> ok
-        print(myInstance.foo)  -> prints "bar"
+        myInstance.foo = 123    # -> TypeError
+        myInstance.foo = "bar"  # -> ok
+        print(myInstance.foo)   # -> prints "bar"
 
     In the exampe above, set/get calls target the instance member ``_foo``, i.e. "_<function_name>".
     The member name can be configured by setting *name*. If *setter* (*deleter*) is *True* (the
@@ -209,38 +208,31 @@ class Number(object):
 
     See :py:meth:`str` for information on string formatting.
 
-    .. py:attribute:: DEFAULT
-       classmember
+    .. py:classattribute:: DEFAULT
 
        Constant that denotes the default uncertainty (``"default"``).
 
-    .. py:attribute:: ALL
-       classmember
+    .. py:classattribute:: ALL
 
        Constant that denotes all uncertainties (``"all"``).
 
-    .. py:attribute:: REL
-       classmember
+    .. py:classattribute:: REL
 
        Constant that denotes relative errors (``"rel"``).
 
-    .. py:attribute:: ABS
-       classmember
+    .. py:classattribute:: ABS
 
        Constant that denotes absolute errors (``"abs"``).
 
-    .. py:attribute:: NOMINAL
-       classmember
+    .. py:classattribute:: NOMINAL
 
        Constant that denotes the nominal value (``"nominal"``).
 
-    .. py:attribute:: UP
-       classmember
+    .. py:classattribute:: UP
 
        Constant that denotes the up direction (``"up"``).
 
-    .. py:attribute:: DOWN
-       classmember
+    .. py:classattribute:: DOWN
 
        Constant that denotes the down direction (``"down"``).
 
@@ -290,7 +282,9 @@ class Number(object):
     UP = "up"
     DOWN = "down"
 
-    def __init__(self, nominal=0.0, uncertainties=None):
+    default_format = "%s"
+
+    def __init__(self, nominal=0.0, uncertainties=None, default_format=None):
         super(Number, self).__init__()
 
         # wrapped values
@@ -304,6 +298,8 @@ class Number(object):
         self.nominal = nominal
         if uncertainties is not None:
             self.uncertainties = uncertainties
+
+        self.default_format = default_format
 
     @typed
     def nominal(self, nominal):
@@ -323,10 +319,11 @@ class Number(object):
                         self._uncertainties[name] = unc
                 # compare shape if already an array
                 elif nominal.shape != first_unc.shape:
-                    raise ValueError("shape not matching uncertainty shape: %s" % nominal.shape)
+                    raise ValueError("shape not matching uncertainty shape: {}".format(
+                        nominal.shape))
             nominal = nominal.astype(self.dtype)
         else:
-            raise TypeError("invalid nominal value: %s" % nominal)
+            raise TypeError("invalid nominal value: {}".format(nominal))
 
         return nominal
 
@@ -350,8 +347,8 @@ class Number(object):
         _uncertainties = {}
         for name, val in uncertainties.items():
             # check the name
-            if not isinstance(name, basestring):
-                raise TypeError("invalid uncertainty name: %s" % name)
+            if not isinstance(name, string_types):
+                raise TypeError("invalid uncertainty name: {}".format(name))
 
             # parse the value type
             if isinstance(val, (int, float)) or is_numpy(val):
@@ -359,15 +356,15 @@ class Number(object):
             elif isinstance(val, list):
                 val = tuple(val)
             elif not isinstance(val, tuple):
-                raise TypeError("invalid uncertainty type: %s" % val)
+                raise TypeError("invalid uncertainty type: {}".format(val))
 
             # parse the value itself
             utype, up, down = self.ABS, None, None
             for v in val:
                 # check if the uncertainty type is changed
-                if isinstance(v, basestring):
+                if isinstance(v, string_types):
                     if v not in (self.ABS, self.REL):
-                        raise ValueError("unknown uncertainty type: %s" % v)
+                        raise ValueError("unknown uncertainty type: {}".format(v))
                     utype = v
                     continue
 
@@ -380,10 +377,10 @@ class Number(object):
                 elif is_numpy(v):
                     # check the shape
                     if v.shape != self.shape:
-                        raise ValueError("shape not matching nominal shape: %s" % v.shape)
+                        raise ValueError("shape not matching nominal shape: {}".format(v.shape))
                     v = v.astype(self.dtype)
                 else:
-                    raise TypeError("invalid uncertainty value: %s" % v)
+                    raise TypeError("invalid uncertainty value: {}".format(v))
 
                 # convert to abs
                 if utype == self.REL:
@@ -411,7 +408,7 @@ class Number(object):
         uncertainty was found and *default* is given, that value is returned.
         """
         if direction not in (None, self.UP, self.DOWN):
-            raise ValueError("unknown direction: %s" % direction)
+            raise ValueError("unknown direction: {}".format(direction))
 
         unc = self.uncertainties.get(name, *kwargs.values())
 
@@ -434,15 +431,15 @@ class Number(object):
         uncertainties = self.__class__.uncertainties.fparse(self, {name: value})
         self._uncertainties.update(uncertainties)
 
-    def str(self, format="%s", unit=None, scientific=False, si=False, labels=True, style="plain",
-            force_asymmetric=False, **kwargs):
-        """
+    def str(self, format=None, unit=None, scientific=False, si=False, labels=True, style="plain",
+            styles=None, force_asymmetric=False, **kwargs):
+        r"""
         Returns a readable string representiation of the number. *format* is used to format
         non-NumPy nominal and uncertainty values. It can be a string such as ``"%d"``, a function
         that is called with the value to format, or a rounding method as accepted by
-        :py:meth:`round_value`. All keyword arguments except wildcard *kwargs* are only used to
-        format non-NumPy values. In case of NumPy objects, *kwargs* are passed to
-        `numpy.array2string
+        :py:meth:`round_value`. When *None* (the default), :py:attr:`default_format` is used. All
+        keyword arguments except wildcard *kwargs* are only used to format non-NumPy values. In case
+        of NumPy objects, *kwargs* are passed to `numpy.array2string
         <https://docs.scipy.org/doc/numpy/reference/generated/numpy.array2string.html>`_.
 
         When *unit* is set, it is appended to the end of the string. When *scientific* is *True*,
@@ -450,8 +447,10 @@ class Number(object):
         *si* is *True*, the appropriate SI prefix is used. *labels* controls whether uncertainty
         labels are shown in the string. When *True*, uncertainty names are used, but it can also
         be a list of labels whose order should match the uncertainty dict traversal order. *style*
-        can be *"plain"*, *"latex"*, or *"root"*. Unless *force_asymmetric* is *True*, an
-        uncertainty is quoted symmetric if it yields identical values in both directions.
+        can be ``"plain"``, ``"latex"``, or ``"root"``. *styles* can be a dict with fields
+        ``"space"``, ``"label"``, ``"unit"``, ``"sym"``, ``"asym"``, ``"sci"`` to customize every
+        aspect of the format style on top of :py:attr:`style_dict`. Unless *force_asymmetric* is
+        *True*, an uncertainty is quoted symmetric if it yields identical values in both directions.
 
         Examples:
 
@@ -464,21 +463,30 @@ class Number(object):
             n.str("pdg")          # -> '17.3 +- 1.2 (a) +- 0.5 (b)'
 
             n = Number(8848, 10)
-            n.str(unit="m")                          # -> "8848.0 +- 10.0 m"
-            n.str(unit="m", force_asymmetric=True)   # -> "8848.0 +10.0-10.0 m"
-            n.str(unit="m", scientific=True)         # -> "8.848 +- 0.01 x 1E3 m"
-            n.str(unit="m", si=True)                 # -> "8.848 +- 0.01 km"
-            n.str(unit="m", style="latex")           # -> "$8848.0\;\pm\;10.0\;m$"
-            n.str(unit="m", style="latex", si=True)  # -> "$8.848\;\pm\;0.01\;km$"
-            n.str(unit="m", style="root")            # -> "8848.0 #pm 10.0 m"
-            n.str(unit="m", style="root", si=True)   # -> "8.848 #pm 0.01 km"
+            n.str(unit="m")                           # -> "8848.0 +- 10.0 m"
+            n.str(unit="m", force_asymmetric=True)    # -> "8848.0 +10.0-10.0 m"
+            n.str(unit="m", scientific=True)          # -> "8.848 +- 0.01 x 1E3 m"
+            n.str("%.2f", unit="m", scientific=True)  # -> "8.85 +- 0.01 x 1E3 m"
+            n.str(unit="m", si=True)                  # -> "8.848 +- 0.01 km"
+            n.str("%.2f", unit="m", si=True)          # -> "8.85 +- 0.01 km"
+            n.str(unit="m", style="latex")            # -> "8848.0 \pm 10.0\,m"
+            n.str(unit="m", style="latex", si=True)   # -> "8.848 \pm 0.01\,km"
+            n.str(unit="m", style="root")             # -> "8848.0 #pm 10.0 m"
+            n.str(unit="m", style="root", si=True)    # -> "8.848 #pm 0.01 km"
         """
+        if format is None:
+            format = self.default_format or self.__class__.default_format
+
         if not self.is_numpy:
             # check style
             style = style.lower()
-            if style not in _style_dict.keys():
-                raise ValueError("unknown style '%s'" % (style,))
-            d = _style_dict[style]
+            if style not in style_dict.keys():
+                raise ValueError("unknown style '{}'".format(style))
+            d = style_dict[style]
+
+            # extend by custom styles
+            if styles:
+                d.update(styles)
 
             # scientific or SI notation?
             prefix = ""
@@ -512,12 +520,9 @@ class Number(object):
                 e = ""
                 if scientific and mag:
                     e += d["space"] + d["sci"].format(mag=mag)
-                if prefix or unit:
-                    e += d["space"]
-                if prefix:
-                    e += prefix
-                if unit:
-                    e += unit
+                _unit = (prefix or "") + (unit or "")
+                if _unit:
+                    e += d["unit"].format(unit=_unit)
                 return e
 
             # start building the text
@@ -550,9 +555,6 @@ class Number(object):
 
                 text += ending()
 
-            if style == "latex":
-                text = "$" + text + "$"
-
             return text
 
         else:
@@ -566,12 +568,12 @@ class Number(object):
                 text += " (no uncertainties)"
             elif len(uncs) == 1 and list(uncs.keys())[0] == self.DEFAULT:
                 up, down = self.get_uncertainty()
-                text += "\n+ %s" % np.array2string(up, **kwargs)
-                text += "\n- %s" % np.array2string(down, **kwargs)
+                text += "\n+ {}".format(np.array2string(up, **kwargs))
+                text += "\n- {}".format(np.array2string(down, **kwargs))
             else:
                 for name, (up, down) in uncs.items():
-                    text += "\n+ %s %s" % (name, np.array2string(up, **kwargs))
-                    text += "\n- %s %s" % (name, np.array2string(down, **kwargs))
+                    text += "\n+ {} {}".format(name, np.array2string(up, **kwargs))
+                    text += "\n- {} {}".format(name, np.array2string(down, **kwargs))
 
             return text
 
@@ -582,10 +584,9 @@ class Number(object):
         if not self.is_numpy:
             text = "'" + self.str(*args, **kwargs) + "'"
         else:
-            text = "%s numpy array, %i uncertainties" % (self.shape, len(self.uncertainties))
+            text = "{} numpy array, {} uncertainties".format(self.shape, len(self.uncertainties))
 
-        tpl = (self.__class__.__name__, hex(id(self)), text)
-        return "<%s at %s, %s>" % tpl
+        return "<{} at {}, {}>".format(self.__class__.__name__, hex(id(self)), text)
 
     def copy(self, nominal=None, uncertainties=None):
         """
@@ -617,7 +618,7 @@ class Number(object):
                 names = make_list(names)
                 if any(name not in self.uncertainties for name in names):
                     unknown = list(set(names) - set(self.uncertainties.keys()))
-                    raise ValueError("unknown uncertainty name(s): %s" % unknown)
+                    raise ValueError("unknown uncertainty name(s): {}".format(unknown))
 
             # calculate the combined uncertainty without correlation
             idx = int(direction == self.DOWN)
@@ -633,7 +634,7 @@ class Number(object):
                 value = self.nominal - unc
 
         else:
-            raise ValueError("unknown direction: %s" % direction)
+            raise ValueError("unknown direction: {}".format(direction))
 
         return value if not factor else value / self.nominal
 
@@ -726,7 +727,7 @@ class Number(object):
         return self.repr()
 
     def _repr_latex_(self):
-        return self.repr() if self.is_numpy else self.str(style="latex")
+        return self.repr() if self.is_numpy else "${}$".format(self.str(style="latex"))
 
     def __contains__(self, name):
         # check whether name is an uncertainty
@@ -886,8 +887,7 @@ class Operation(object):
         return self._name
 
     def __repr__(self):
-        tpl = (self.__class__.__name__, self.name, hex(id(self)))
-        return "<%s '%s' at %s>" % tpl
+        return "<{} '{}' at {}>".format(self.__class__.__name__, self.name, hex(id(self)))
 
 
 class OpsMeta(type):
@@ -896,8 +896,7 @@ class OpsMeta(type):
         return name in cls._instances
 
 
-@add_metaclass(OpsMeta)
-class ops(object):
+class ops(with_metaclass(OpsMeta, object)):
     """
     Number-aware replacement for the global math (or numpy) module. The purpose of the class is to
     provide operations (e.g. `pow`, `cos`, `sin`, etc.) that automatically propagate the
@@ -945,7 +944,8 @@ class ops(object):
             @functools.wraps(function)
             def wrapper(num, *args, **kwargs):
                 if op.derivative is None:
-                    raise Exception("cannot run operation '%s', no derivative registered" % op.name)
+                    raise Exception("cannot run operation '{}', no derivative registered".format(
+                        op.name))
 
                 # ensure we deal with a number instance
                 num = ensure_number(num)
@@ -1307,12 +1307,12 @@ def combine_uncertainties(op, unc1, unc2, nom1=None, nom2=None, rho=0.):
         f = op
         op = _op_map_reverse[op]
     else:
-        raise ValueError("unknown operator: %s" % op)
+        raise ValueError("unknown operator: {}".format(op))
 
     # prepare values for combination, depends on operator
     if op in ("*", "/", "**"):
         if nom1 is None or nom2 is None:
-            raise ValueError("operator '%s' requires nominal values" % op)
+            raise ValueError("operator '{}' requires nominal values".format(op))
         # numpy-safe conversion to float
         nom1 *= 1.
         nom2 *= 1.
@@ -1507,7 +1507,7 @@ def round_uncertainty(unc, method="publication"):
     # validate the method
     meth = method.lower()
     if meth not in ("pub", "publication", "pdg", "one", "onedigit"):
-        raise ValueError("unknown rounding method: %s" % (method,))
+        raise ValueError("unknown rounding method: {}".format(method))
 
     # split the uncertainty
     sig, mag = split_value(unc)
@@ -1577,9 +1577,9 @@ def round_value(val, unc=None, unc_down=None, method="publication"):
         if len(unc_up) != len(unc_down):
             raise ValueError("uncertainties should have same length when passed as lists")
         elif any(unc < 0 for unc in unc_up):
-            raise ValueError("up uncertainties must be positive: %s" % (unc_up,))
+            raise ValueError("up uncertainties must be positive: {}".format(unc_up))
         elif any(unc < 0 for unc in unc_down):
-            raise ValueError("down uncertainties must be positive: %s" % (unc_down,))
+            raise ValueError("down uncertainties must be positive: {}".format(unc_down))
 
         # to determine the precision, use the uncertainty with the smallest magnitude
         ref_mag = min(round_uncertainty(u, method=method)[1] for u in unc_up + unc_down)
@@ -1598,9 +1598,9 @@ def round_value(val, unc=None, unc_down=None, method="publication"):
     else:
         # sanity checks
         if (unc_up < 0).any():
-            raise ValueError("up uncertainties must be positive: %s" % (unc_up,))
+            raise ValueError("up uncertainties must be positive: {}".format(unc_up))
         elif (unc_down < 0).any():
-            raise ValueError("down uncertainties must be positive: %s" % (unc_down,))
+            raise ValueError("down uncertainties must be positive: {}".format(unc_down))
 
         # to determine the precision, use the uncertainty with the smallest magnitude
         ref_mag_up = round_uncertainty(unc_up, method=method)[1]
@@ -1628,9 +1628,9 @@ def infer_si_prefix(f):
 
     .. code-block:: python
 
-        infer_si_prefix(1)    # -> ("", 0)
-        infer_si_prefix(25)   # -> ("", 0)
-        infer_si_prefix(4320) # -> ("k", 3)
+        infer_si_prefix(1)     # -> ("", 0)
+        infer_si_prefix(25)    # -> ("", 0)
+        infer_si_prefix(4320)  # -> ("k", 3)
     """
     if f == 0:
         return "", 0
@@ -1639,26 +1639,44 @@ def infer_si_prefix(f):
         return si_refixes[mag], mag
 
 
-_style_dict = {
+#: Dictionaly containing formatting styles for ``"plain"``, ``"latex"`` and ``"root"`` styles which
+#: are used in :py:meth:`Number.str`. Each style dictionary contains 6 fields: ``"space"``,
+#: ``"label"``, ``"unit"``, ``"sym"``, ``"asym"``, and ``"sci"``. As an example, the plain style is
+#: configured as
+#:
+#: .. code-block:: python
+#:
+#:     {
+#:         "space": " ",
+#:         "label": "({label})",
+#:         "unit": " {unit}",
+#:         "sym": "+- {unc}",
+#:         "asym": "+{up}-{down}",
+#:         "sci": "x 1E{mag}",
+#:     }
+style_dict = {
     "plain": {
         "space": " ",
         "label": "({label})",
+        "unit": " {unit}",
         "sym": "+- {unc}",
         "asym": "+{up}-{down}",
         "sci": "x 1E{mag}",
     },
     "latex": {
-        "space": r"\;",
+        "space": r" ",
         "label": r"\left(\text{{{label}}}\right)",
-        "sym": r"\pm\;{unc}",
-        "asym": r"^{{+{up}}}_{{-{down}}}",
-        "sci": r"\times10^{{{mag}}}",
+        "unit": r"\,{unit}",
+        "sym": r"\pm {unc}",
+        "asym": r"\,^{{+{up}}}_{{-{down}}}",
+        "sci": r"\times 10^{{{mag}}}",
     },
     "root": {
         "space": " ",
         "label": "#left({label}#right)",
+        "unit": " {unit}",
         "sym": "#pm {unc}",
-        "asym": "^{{+{up}}}_{-{{down}}}",
+        "asym": "^{{+{up}}}_{{-{down}}}",
         "sci": "#times 10^{{{mag}}}",
     },
 }

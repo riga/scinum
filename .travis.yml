@@ -17,14 +17,14 @@ jobs:
         - pip install -r requirements.txt
         - pip install flake8
       script:
-        - flake8 scinum.py
+        - flake8 scinum.py test setup.py
 
     - stage: test
       services:
         - docker
       env:
         - JOB=test_python2
-        - IMG=riga/py2-sci
+        - IMG=riga/py-sci:2
       install:
         - docker pull $IMG
       script:
@@ -35,7 +35,7 @@ jobs:
         - docker
       env:
         - JOB=test_python3
-        - IMG=riga/py3-sci
+        - IMG=riga/py-sci:3
       install:
         - docker pull $IMG
       script:

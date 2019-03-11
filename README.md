@@ -1,13 +1,13 @@
 <img src="https://raw.githubusercontent.com/riga/scinum/master/logo.png" alt="scinum logo" width="250"/>
 
-[![Build Status](https://travis-ci.org/riga/scinum.svg?branch=master)](https://travis-ci.org/riga/scinum) [![Documentation Status](https://readthedocs.org/projects/scinum/badge/?version=latest)](http://scinum.readthedocs.org/en/latest/?badge=latest) [![Package Status](https://badge.fury.io/py/scinum.svg)](https://badge.fury.io/py/scinum) [![License](https://img.shields.io/github/license/riga/scinum.svg)](https://github.com/riga/scinum/blob/master/LICENSE)
+[![Build Status](https://travis-ci.org/riga/scinum.svg?branch=master)](https://travis-ci.org/riga/scinum) [![Documentation Status](https://readthedocs.org/projects/scinum/badge/?version=latest)](http://scinum.readthedocs.org/en/latest/?badge=latest) [![Package Status](https://badge.fury.io/py/scinum.svg)](https://badge.fury.io/py/scinum) [![License](https://img.shields.io/github/license/riga/scinum.svg)](https://github.com/riga/scinum/blob/master/LICENSE) [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/riga/scinum/master?filepath=example.ipynb)
 
 scinum provides a simple `Number` class that wraps plain floats or [NumPy](http://www.numpy.org/) arrays and adds support for multiple uncertainties, automatic (gaussian) error propagation, and scientific rounding.
 
 
 ### Usage
 
-The following examples demonstrate the most common use cases. For more info, see the [API documentation](http://scinum.readthedocs.org/en/latest/?badge=latest).
+The following examples demonstrate the most common use cases. For more info, see the [API documentation](http://scinum.readthedocs.org/en/latest/?badge=latest) or open the [example.ipynb](https://github.com/riga/scinum/blob/master/example.ipynb) notebook in binder: [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/riga/scinum/master?filepath=example.ipynb)
 
 
 ###### Number definition
@@ -64,8 +64,8 @@ n.str(unit="m")                          # -> "8848.0 +- 10.0 m"
 n.str(unit="m", force_asymmetric=True)   # -> "8848.0 +10.0-10.0 m"
 n.str(unit="m", scientific=True)         # -> "8.848 +- 0.01 x 1E3 m"
 n.str(unit="m", si=True)                 # -> "8.848 +- 0.01 km"
-n.str(unit="m", style="latex")           # -> "$8848.0\;\pm\;10.0\;m$"
-n.str(unit="m", style="latex", si=True)  # -> "$8.848\;\pm\;0.01\;km$"
+n.str(unit="m", style="latex")           # -> "$8848.0 \pm 10.0\,m$"
+n.str(unit="m", style="latex", si=True)  # -> "8.848 \pm 0.01\,km"
 n.str(unit="m", style="root")            # -> "8848.0 #pm 10.0 m"
 n.str(unit="m", style="root", si=True)   # -> "8.848 #pm 0.01 km"
 
@@ -202,7 +202,7 @@ To run tests in a docker container, do:
 git clone https://github.com/riga/scinum.git
 cd scinum
 
-docker run --rm -v `pwd`:/root/scinum -w /root/scinum python:3.6 python -m unittest tests
+docker run --rm -v `pwd`:/scinum -w /scinum python:3.6 python -m unittest tests
 ```
 
 
@@ -210,8 +210,3 @@ docker run --rm -v `pwd`:/root/scinum -w /root/scinum python:3.6 python -m unitt
 
 - Source hosted at [GitHub](https://github.com/riga/scinum)
 - Report issues, questions, feature requests on [GitHub Issues](https://github.com/riga/scinum/issues)
-
-
-### Contributors
-
-- [Marcel R.](https://github.com/riga) (author)
