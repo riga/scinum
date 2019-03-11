@@ -52,5 +52,5 @@ setup(
     install_requires=install_requires,
     python_requires=">=2.7",
     zip_safe=False,
-    packages=[sn.__name__],
+    py_modules=[sn.__name__],
 )
