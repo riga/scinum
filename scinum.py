@@ -208,6 +208,11 @@ class Number(object):
 
     See :py:meth:`str` for information on string formatting.
 
+    .. py:classattribute:: default_format
+
+       The default format string (``"%s"``) that is used in :py:meth:`str()` when no format string
+       was passed.
+
     .. py:classattribute:: DEFAULT
 
        Constant that denotes the default uncertainty (``"default"``).
