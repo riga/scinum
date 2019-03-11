@@ -49,6 +49,7 @@ setup(
     keywords=keywords,
     classifiers=classifiers,
     long_description=long_description,
+    long_description_content_type="text/markdown",
     install_requires=install_requires,
     python_requires=">=2.7",
     zip_safe=False,
