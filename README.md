@@ -7,7 +7,7 @@ scinum provides a simple `Number` class that wraps plain floats or [NumPy](http:
 
 ### Usage
 
-The following examples demonstrate the most common use cases. For more info, see the [API documentation](http://scinum.readthedocs.org/en/latest/?badge=latest) or open the [example.ipynb](https://github.com/riga/scinum/blob/master/example.ipynb) notebook in binder: [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/riga/scinum/master?filepath=example.ipynb)
+The following examples demonstrate the most common use cases. For more info, see the [API documentation](http://scinum.readthedocs.org/en/latest/?badge=latest) or open the [example.ipynb](https://github.com/riga/scinum/blob/master/example.ipynb) notebook on binder: [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/riga/scinum/master?filepath=example.ipynb)
 
 
 ###### Number definition

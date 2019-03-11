@@ -1,7 +1,7 @@
 scinum
 ======
 
-.. centered:: This page contains only API docs. For more info, visit `scinum on GitHub <https://github.com/riga/scinum>`_ or open the `example.ipynb <https://github.com/riga/scinum/blob/master/example.ipynb>`__ notebook in binder: |binder|
+.. centered:: This page contains only API docs. For more info, visit `scinum on GitHub <https://github.com/riga/scinum>`_ or open the `example.ipynb <https://github.com/riga/scinum/blob/master/example.ipynb>`__ notebook on binder: |binder|
 
 .. contents::
 
