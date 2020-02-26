@@ -7,7 +7,7 @@ Scientific numbers with multiple uncertainties and correlation-aware, gaussian p
 
 __author__ = "Marcel Rieger"
 __email__ = "python-scinum@googlegroups.com"
-__copyright__ = "Copyright 2017-2019, Marcel Rieger"
+__copyright__ = "Copyright 2017-2020, Marcel Rieger"
 __credits__ = ["Marcel Rieger"]
 __contact__ = "https://github.com/riga/scinum"
 __license__ = "BSD-3-Clause"
