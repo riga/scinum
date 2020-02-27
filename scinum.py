@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+# coding: utf-8
 
 """
 Scientific numbers with multiple uncertainties and correlation-aware, gaussian propagation.
@@ -35,7 +35,7 @@ except ImportError:
 # version related adjustments
 string_types = (str,)
 if sys.version_info.major < 3:
-    string_types += (basestring,)
+    string_types += (basestring,)  # noqa
 
 
 # metaclass decorator from six package, credits to Benjamin Peterson
