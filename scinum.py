@@ -34,7 +34,7 @@ except ImportError:
 
 # version related adjustments
 string_types = (str,)
-if sys.version_info < (3, 0):
+if sys.version_info.major < 3:
     string_types += (basestring,)
 
 
