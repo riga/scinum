@@ -406,16 +406,19 @@ class Number(object):
 
         return _uncertainties
 
-    def get_uncertainty(self, name=DEFAULT, direction=None, **kwargs):
-        """ get_uncertainty(name=DEFAULT, direction=None, default=None)
+    def get_uncertainty(self, name=DEFAULT, direction=None, default=None):
+        """
         Returns the *absolute* up and down variaton in a 2-tuple for an uncertainty *name*. When
         *direction* is set, the particular value is returned instead of a 2-tuple. In case no
-        uncertainty was found and *default* is given, that value is returned.
+        uncertainty was found and *default* is not *None*, that value is returned.
         """
         if direction not in (None, self.UP, self.DOWN):
             raise ValueError("unknown direction: {}".format(direction))
 
-        unc = self.uncertainties.get(name, *kwargs.values())
+        if name not in self.uncertainties and default is not None:
+            return default
+
+        unc = self.uncertainties[name]
 
         if direction is None:
             return unc
@@ -652,45 +655,48 @@ class Number(object):
         return None if not self.is_numpy else self.nominal.shape
 
     def add(self, *args, **kwargs):
-        """ add(other, rho=0, inplace=True)
-        Adds an *other* number instance. The correlation coefficient *rho* can be configured per
+        """ add(other, rho=1.0, inplace=True)
+        Adds an *other* number instance, propagating all uncertainties. Uncertainties with the same
+        name are combined with the correlation coefficient *rho*, which can be configured per
         uncertainty when passed as a dict. When *inplace* is *False*, a new instance is returned.
         """
         return self._apply(operator.add, *args, **kwargs)
 
     def sub(self, *args, **kwargs):
-        """ sub(other, rho=0, inplace=True)
-        Subtracts an *other* number instance. The correlation coefficient *rho* can be configured
-        per uncertainty when passed as a dict. When *inplace* is *False*, a new instance is
-        returned.
+        """ sub(other, rho=1.0, inplace=True)
+        Subtracts an *other* number instance, propagating all uncertainties. Uncertainties with the
+        same name are combined with the correlation coefficient *rho*, which can be configured per
+        uncertainty when passed as a dict. When *inplace* is *False*, a new instance is returned.
         """
         return self._apply(operator.sub, *args, **kwargs)
 
     def mul(self, *args, **kwargs):
-        """ mul(other, rho=0, inplace=True)
-        Multiplies by an *other* number instance. The correlation coefficient *rho* can be
-        configured per uncertainty when passed as a dict. When *inplace* is *False*, a new instance
-        is returned.
+        """ mul(other, rho=1.0, inplace=True)
+        Multiplies by an *other* number instance, propagating all uncertainties. Uncertainties with
+        the same name are combined with the correlation coefficient *rho*, which can be configured
+        per uncertainty when passed as a dict. When *inplace* is *False*, a new instance is
+        returned.
         """
         return self._apply(operator.mul, *args, **kwargs)
 
     def div(self, *args, **kwargs):
-        """ div(other, rho=0, inplace=True)
-        Divides by an *other* number instance. The correlation coefficient *rho* can be configured
-        per uncertainty when passed as a dict. When *inplace* is *False*, a new instance is
-        returned.
+        """ div(other, rho=1.0, inplace=True)
+        Divides by an *other* number instance, propagating all uncertainties. Uncertainties with the
+        same name are combined with the correlation coefficient *rho*, which can be configured per
+        uncertainty when passed as a dict. When *inplace* is *False*, a new instance is returned.
         """
         return self._apply(operator.truediv, *args, **kwargs)
 
     def pow(self, *args, **kwargs):
-        """ pow(other, rho=0, inplace=True)
-        Raises by the power of an *other* number instance. The correlation coefficient *rho* can be
-        configured per uncertainty when passed as a dict. When *inplace* is *False*, a new instance
-        is returned.
+        """ pow(other, rho=1.0, inplace=True)
+        Raises by the power of an *other* number instance, propagating all uncertainties.
+        Uncertainties with the same name are combined with the correlation coefficient *rho*, which
+        can be configured per uncertainty when passed as a dict. When *inplace* is *False*, a new
+        instance is returned.
         """
         return self._apply(operator.pow, *args, **kwargs)
 
-    def _apply(self, op, other, rho=0., inplace=True):
+    def _apply(self, op, other, rho=1., inplace=True):
         num = self if inplace else self.copy()
         other = ensure_number(other)
 
@@ -699,12 +705,12 @@ class Number(object):
 
         # propagate uncertainties
         uncs = {}
-        dflt = (0., 0.)
+        default = (0., 0.)
         for name in set(num.uncertainties.keys()) | set(other.uncertainties.keys()):
-            _rho = rho if not isinstance(rho, dict) else rho.get(name, 0.)
+            _rho = rho if not isinstance(rho, dict) else rho.get(name, 1.)
 
-            num_unc = num.get_uncertainty(name, default=dflt)
-            other_unc = other.get_uncertainty(name, default=dflt)
+            num_unc = num.get_uncertainty(name, default=default)
+            other_unc = other.get_uncertainty(name, default=default)
 
             uncs[name] = tuple(combine_uncertainties(op, num_unc[i], other_unc[i],
                 nom1=num.nominal, nom2=other.nominal, rho=_rho) for i in range(2))
