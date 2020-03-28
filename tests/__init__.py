@@ -218,42 +218,37 @@ class TestCase(unittest.TestCase):
         num2 = Number(5, {"A": 2.5, "C": 1})
         num = self.num + num2
         self.assertEqual(num(), 7.5)
-        self.assertEqual(num.u("A", UP), ptgr(0.5, 2.5))
+        self.assertEqual(num.u("A", UP), 3.0)
         self.assertEqual(num.u("B", UP), 1.0)
-        self.assertEqual(num.u("C", UP), ptgr(1.0, 1.0))
-        self.assertEqual(num.u("C", DOWN), ptgr(1.0, 1.5))
+        self.assertEqual(num.u("C", UP), 2.0)
+        self.assertEqual(num.u("C", DOWN), 2.5)
 
         num = self.num - num2
         self.assertEqual(num(), -2.5)
-        self.assertEqual(num.u("A", UP), ptgr(0.5, 2.5))
+        self.assertEqual(num.u("A", UP), 2.0)
         self.assertEqual(num.u("B", UP), 1.0)
-        self.assertEqual(num.u("C", UP), ptgr(1.0, 1.0))
-        self.assertEqual(num.u("C", DOWN), ptgr(1.0, 1.5))
+        self.assertEqual(num.u("C", UP), 0.)
+        self.assertEqual(num.u("C", DOWN), 0.5)
 
         num = self.num * num2
         self.assertEqual(num(), 12.5)
-        self.assertEqual(num.u("A", UP), num() * ptgr(0.5, 0.2))
-        self.assertEqual(num.u("B", UP), num() * 0.4)
-        self.assertEqual(num.u("C", UP), num() * ptgr(0.2, 0.4))
-        self.assertEqual(num.u("C", DOWN), num() * ptgr(0.2, 0.6))
+        self.assertEqual(num.u("A", UP), 8.75)
+        self.assertEqual(num.u("B", UP), 5.0)
+        self.assertAlmostEqual(num.u("C", UP), 7.5)
+        self.assertEqual(num.u("C", DOWN), 10.)
 
         num = self.num / num2
         self.assertEqual(num(), 0.5)
-        self.assertEqual(num.u("A", UP), num() * ptgr(0.5, 0.2))
-        self.assertEqual(num.u("B", UP), num() * 0.4)
-        self.assertEqual(num.u("C", UP), num() * ptgr(0.2, 0.4))
-        self.assertEqual(num.u("C", DOWN), num() * ptgr(0.2, 0.6))
+        self.assertAlmostEqual(num.u("A", UP), 0.15)
+        self.assertEqual(num.u("B", UP), 0.2)
+        self.assertEqual(num.u("C", UP), 0.1)
+        self.assertEqual(num.u("C", DOWN), 0.2)
 
         num = self.num ** num2
         self.assertAlmostEqual(num(), self.num() ** 5)
-        self.assertAlmostEqual(num.u("A", UP), ptgr(
-            5 * self.num() ** 4 * self.num.get_uncertainty("A", UP),
-            num() * math.log(self.num()) * num2.get_uncertainty("A", UP)))
-        self.assertAlmostEqual(num.u("B", UP),
-            5 * self.num() ** 4 * self.num.get_uncertainty("B", UP))
-        self.assertAlmostEqual(num.u("C", DOWN), ptgr(
-            5 * self.num() ** 4 * self.num.get_uncertainty("C", DOWN),
-            num() * math.log(self.num()) * num2.get_uncertainty("C", DOWN)))
+        self.assertAlmostEqual(num.u("A", UP), 321.3600420)
+        self.assertAlmostEqual(num.u("B", UP), 195.3125)
+        self.assertAlmostEqual(num.u("C", DOWN), 382.4502668)
 
     def test_ops_registration(self):
         self.assertTrue("exp" in ops)
