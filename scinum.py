@@ -1,7 +1,8 @@
 # coding: utf-8
 
 """
-Scientific numbers with multiple uncertainties and correlation-aware, gaussian propagation.
+Scientific numbers with multiple uncertainties and correlation-aware, gaussian propagation and numpy
+support.
 """
 
 
@@ -12,7 +13,7 @@ __credits__ = ["Marcel Rieger"]
 __contact__ = "https://github.com/riga/scinum"
 __license__ = "BSD-3-Clause"
 __status__ = "Development"
-__version__ = "1.0.2"
+__version__ = "1.1.0"
 __all__ = ["Number", "Operation", "ops", "style_dict", "REL", "ABS", "NOMINAL", "UP", "DOWN"]
 
 
