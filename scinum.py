@@ -1328,9 +1328,11 @@ def combine_uncertainties(op, unc1, unc2, nom1=None, nom2=None, rho=0.):
         # numpy-safe conversion to float
         nom1 *= 1.
         nom2 *= 1.
-        # convert uncertainties to relative values
-        unc1 /= nom1
-        unc2 /= nom2
+        # convert uncertainties to relative values, taking into account zeros
+        if unc1 or nom1:
+            unc1 /= nom1
+        if unc2 or nom2:
+            unc2 /= nom2
         # determine
         nom = abs(f(nom1, nom2))
     else:

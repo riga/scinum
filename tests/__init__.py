@@ -214,6 +214,11 @@ class TestCase(unittest.TestCase):
         self.assertAlmostEqual(num.u("C", DOWN),
                 math.log(2) * num() * self.num.get_uncertainty("C", DOWN))
 
+        num = self.num * 0
+        self.assertEqual(num(), 0)
+        self.assertEqual(num(UP), 0)
+        self.assertEqual(num(DOWN), 0)
+
         # ops with other numbers
         num2 = Number(5, {"A": 2.5, "C": 1})
         num = self.num + num2
@@ -249,6 +254,11 @@ class TestCase(unittest.TestCase):
         self.assertAlmostEqual(num.u("A", UP), 321.3600420)
         self.assertAlmostEqual(num.u("B", UP), 195.3125)
         self.assertAlmostEqual(num.u("C", DOWN), 382.4502668)
+
+        num = self.num * Number(0, 0)
+        self.assertEqual(num(), 0)
+        self.assertEqual(num(UP), 0)
+        self.assertEqual(num(DOWN), 0)
 
     def test_ops_registration(self):
         self.assertTrue("exp" in ops)
