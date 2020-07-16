@@ -15,6 +15,8 @@ The following examples demonstrate the most common use cases. For more info, see
 ```python
 from scinum import Number, UP, DOWN
 
+Number.default_format = "%.2f"
+
 num = Number(5, (2, 1))
 print(num)                    # -> 5.00 +2.00-1.00
 
@@ -118,12 +120,12 @@ print(num + 2)  # -> '7.0 +- 1.0'
 print(num * 3)  # -> '15.0 +- 3.0'
 
 num2 = Number(2.5, 1.5)
-print(num + num2)  # -> '7.5 +- 1.80277563773'
-print(num * num2)  # -> '12.5 +- 7.90569415042'
+print(num + num2)  # -> '7.5 +- 2.5'
+print(num * num2)  # -> '12.5 +- 10.0'
 
-# add num2 to num and consider their uncertainties to be fully correlated, i.e. rho = 1
-num.add(num2, rho=1)
-print(num)  # -> '7.5 +- 2.5'
+# add num2 to num and consider their uncertainties to be fully uncorrelated, i.e. rho = 0
+num.add(num2, rho=0)
+print(num)  # -> '7.5 +- 1.80277563773'
 ```
 
 
@@ -135,10 +137,11 @@ As a drop-in replacement for the `math` module, scinum provides an object `ops` 
 from scinum import Number, ops
 
 num = ops.log(Number(5, 2))
-print(num)  # -> 1.61 (+0.40, -0.40)
+print(num)  # -> 1.60943791243 +- 0.4
 
 num = ops.exp(ops.tan(Number(5, 2)))
-print(num)  # -> 0.03 (+0.85, -0.85)
+print(num)  # -> 0.0340299245972 +- 0.845839754815
+print(num.str("%.2f"))  # -> 0.03 +- 0.85
 ```
 
 
