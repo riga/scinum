@@ -17,7 +17,7 @@ jobs:
         - pip install -r requirements.txt
         - pip install flake8
       script:
-        - flake8 scinum.py test setup.py
+        - flake8 scinum.py tests setup.py
 
     - stage: test
       services:
