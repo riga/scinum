@@ -265,7 +265,7 @@ class TestCase(unittest.TestCase):
 
         self.assertFalse("foo" in ops)
 
-        @ops.register
+        @ops.register(ufunc="abc")
         def foo(x, a, b, c):
             return a + b * x + c * x ** 2
 
@@ -273,11 +273,28 @@ class TestCase(unittest.TestCase):
         self.assertEqual(ops.get_operation("foo"), foo)
         self.assertIsNone(foo.derivative)
 
+        self.assertEqual(foo.ufunc_name, "abc")
+        self.assertEqual(ops.get_ufunc_operation("abc"), foo)
+
         @foo.derive
         def foo(x, a, b, c):
             return b + 2 * c * x
 
         self.assertTrue(callable(foo.derivative))
+
+    @if_numpy
+    def test_ufuncs(self):
+        num = np.multiply(self.num, 2)
+        self.assertAlmostEqual(num(), self.num() * 2.)
+        self.assertAlmostEqual(num.u("A", UP), 1.)
+        self.assertAlmostEqual(num.u("B", UP), 2.)
+        self.assertAlmostEqual(num.u("C", DOWN), 3.)
+
+        num = np.exp(Number(np.array([1., 2.]), 3.))
+        self.assertAlmostEqual(num.nominal[0], 2.718282, 6)
+        self.assertAlmostEqual(num.nominal[1], 7.389056, 6)
+        self.assertAlmostEqual(num.get(UP)[0], 10.873127, 6)
+        self.assertAlmostEqual(num.get(UP)[1], 29.556225, 6)
 
     def test_op_pow(self):
         num = ops.pow(self.num, 2)
