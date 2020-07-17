@@ -52,6 +52,12 @@ Functions
 .. autofunction:: combine_uncertainties
 
 
+``calculate_uncertainty``
+-------------------------
+
+.. autofunction:: calculate_uncertainty
+
+
 ``ensure_number``
 -----------------
 
@@ -68,6 +74,18 @@ Functions
 ------------
 
 .. autofunction:: is_numpy
+
+
+``is_ufloat``
+-------------
+
+.. autofunction:: is_ufloat
+
+
+``parse_ufloat``
+----------------
+
+.. autofunction:: parse_ufloat
 
 
 ``infer_math``
