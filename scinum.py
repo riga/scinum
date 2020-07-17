@@ -901,6 +901,28 @@ class Operation(object):
     def __repr__(self):
         return "<{} '{}' at {}>".format(self.__class__.__name__, self.name, hex(id(self)))
 
+    def __call__(self, num, *args, **kwargs):
+        if self.derivative is None:
+            raise Exception("cannot run operation '{}', no derivative registered".format(
+                self.name))
+
+        # ensure we deal with a number instance
+        num = ensure_number(num)
+
+        # apply to the nominal value
+        nominal = self.function(num.nominal, *args, **kwargs)
+
+        # apply to all uncertainties via
+        # unc_f = derivative_f(x) * unc_x
+        x = abs(self.derivative(num.nominal, *args, **kwargs))
+        uncertainties = {}
+        for name in num.uncertainties:
+            up, down = num.get_uncertainty(name)
+            uncertainties[name] = (x * up, x * down)
+
+        # create and return the new number
+        return num.__class__(nominal, uncertainties)
+
 
 class OpsMeta(type):
 
@@ -951,32 +973,9 @@ class ops(with_metaclass(OpsMeta, object)):
         known.
         """
         def register(function):
-            op = Operation(function, name=name)
+            op = Operation(function, name=name, ufunc_name=ufunc_name)
 
-            @functools.wraps(function)
-            def wrapper(num, *args, **kwargs):
-                if op.derivative is None:
-                    raise Exception("cannot run operation '{}', no derivative registered".format(
-                        op.name))
-
-                # ensure we deal with a number instance
-                num = ensure_number(num)
-
-                # apply to the nominal value
-                nominal = op.function(num.nominal, *args, **kwargs)
-
-                # apply to all uncertainties via
-                # unc_f = derivative_f(x) * unc_x
-                x = abs(op.derivative(num.nominal, *args, **kwargs))
-                uncertainties = {}
-                for name in num.uncertainties.keys():
-                    up, down = num.get_uncertainty(name)
-                    uncertainties[name] = (x * up, x * down)
-
-                # create and return the new number
-                return num.__class__(nominal, uncertainties)
-
-            # actual registration
+            # save as class attribute and also in _instances
             cls._instances[op.name] = op
             setattr(cls, op.name, staticmethod(wrapper))
 
