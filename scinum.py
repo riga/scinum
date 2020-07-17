@@ -456,6 +456,19 @@ class Number(object):
         uncertainties = self.__class__.uncertainties.fparse(self, {name: value})
         self._uncertainties.update(uncertainties)
 
+    def clear(self, nominal=None, uncertainties=None):
+        """
+        Removes all uncertainties and sets the nominal value to zero (float). When *nominal* and
+        *uncertainties* are given, these new values are set on this instance.
+        """
+        self.uncertainties = {}
+        self.nominal = 0.
+
+        if nominal is not None:
+            self.nominal = nominal
+        if uncertainties is not None:
+            self.uncertainties = uncertainties
+
     def str(self, format=None, unit=None, scientific=False, si=False, labels=True, style="plain",
             styles=None, force_asymmetric=False, **kwargs):
         r"""
@@ -609,7 +622,8 @@ class Number(object):
         if not self.is_numpy:
             text = "'" + self.str(*args, **kwargs) + "'"
         else:
-            text = "{} numpy array, {} uncertainties".format(self.shape, len(self.uncertainties))
+            text = "numpy array, shape {}, {} uncertainties".format(self.shape,
+                len(self.uncertainties))
 
         return "<{} at {}, {}>".format(self.__class__.__name__, hex(id(self)), text)
 
@@ -733,10 +747,33 @@ class Number(object):
                 nom1=num.nominal, nom2=other.nominal, rho=_rho) for i in range(2))
 
         # store values
-        num.nominal = nom
-        num.uncertainties = uncs
+        num.clear(nom, uncs)
 
         return num
+
+    def __array_ufunc__(self, ufunc, method, *inputs, **kwargs):
+        # only direct calls of the ufunc are supported
+        if method != "__call__":
+            return NotImplemented
+
+        # try to find the proper op for that ufunc
+        op = ops.get_ufunc_operation(ufunc)
+        if op is None:
+            return NotImplemented
+
+        # extract kwargs
+        out = kwargs.pop("out", None)
+
+        # apply the op
+        result = op(*inputs, **kwargs)
+
+        # insert in-place to an "out" object?
+        if out is not None:
+            out = out[0]
+            out.clear(result.nominal, result.uncertainties)
+            result = out
+
+        return result
 
     def __call__(self, *args, **kwargs):
         # shorthand for get
@@ -897,12 +934,13 @@ class Operation(object):
        The name of the operation.
     """
 
-    def __init__(self, function, derivative=None, name=None):
+    def __init__(self, function, derivative=None, name=None, ufunc_name=None):
         super(Operation, self).__init__()
 
         self.function = function
         self.derivative = derivative
         self._name = name or function.__name__
+        self._ufunc_name = ufunc_name
 
         # decorator for setting the derivative
         def derive(derivative):
@@ -914,8 +952,34 @@ class Operation(object):
     def name(self):
         return self._name
 
+    @property
+    def ufunc_name(self):
+        return self._ufunc_name
+
     def __repr__(self):
         return "<{} '{}' at {}>".format(self.__class__.__name__, self.name, hex(id(self)))
+
+    def __call__(self, num, *args, **kwargs):
+        if self.derivative is None:
+            raise Exception("cannot run operation '{}', no derivative registered".format(
+                self.name))
+
+        # ensure we deal with a number instance
+        num = ensure_number(num)
+
+        # apply to the nominal value
+        nominal = self.function(num.nominal, *args, **kwargs)
+
+        # apply to all uncertainties via
+        # unc_f = derivative_f(x) * unc_x
+        x = abs(self.derivative(num.nominal, *args, **kwargs))
+        uncertainties = {}
+        for name in num.uncertainties:
+            up, down = num.get_uncertainty(name)
+            uncertainties[name] = (x * up, x * down)
+
+        # create and return the new number
+        return num.__class__(nominal, uncertainties)
 
 
 class OpsMeta(type):
@@ -936,10 +1000,14 @@ class ops(with_metaclass(OpsMeta, object)):
         print(num) # -> 25.00 (+10.00, -10.00)
     """
 
+    # registered operations mapped to their names
     _instances = {}
 
+    # mapping of ufunc names to operation names for faster lookup
+    _ufuncs = {}
+
     @classmethod
-    def register(cls, function=None, name=None):
+    def register(cls, function=None, name=None, ufunc=None):
         """
         Registers a new math function *function* with *name* and returns an :py:class:`Operation`
         instance. A math function expects a :py:class:`Number` as its first argument, followed by
@@ -965,36 +1033,25 @@ class ops(with_metaclass(OpsMeta, object)):
         Please note that there is no need to register *simple* functions as in the particular
         example above as most of them are just composite operations whose derivatives are already
         known.
+
+        To comply with NumPy's ufuncs (https://numpy.org/neps/nep-0013-ufunc-overrides.html) that
+        are handled by :py:meth:`Number.__array_ufunc__`, an operation might define a *ufunc* name
+        to signalize that it should be used when a ufunc with that name is called with a number
+        instance as its argument.
         """
+        ufunc_name = None
+        if ufunc is not None:
+            ufunc_name = ufunc if isinstance(ufunc, string_types) else ufunc.__name__
+
         def register(function):
-            op = Operation(function, name=name)
+            op = Operation(function, name=name, ufunc_name=ufunc_name)
 
-            @functools.wraps(function)
-            def wrapper(num, *args, **kwargs):
-                if op.derivative is None:
-                    raise Exception("cannot run operation '{}', no derivative registered".format(
-                        op.name))
-
-                # ensure we deal with a number instance
-                num = ensure_number(num)
-
-                # apply to the nominal value
-                nominal = op.function(num.nominal, *args, **kwargs)
-
-                # apply to all uncertainties via
-                # unc_f = derivative_f(x) * unc_x
-                x = abs(op.derivative(num.nominal, *args, **kwargs))
-                uncertainties = {}
-                for name in num.uncertainties.keys():
-                    up, down = num.get_uncertainty(name)
-                    uncertainties[name] = (x * up, x * down)
-
-                # create and return the new number
-                return num.__class__(nominal, uncertainties)
-
-            # actual registration
+            # save as class attribute and also in _instances
             cls._instances[op.name] = op
-            setattr(cls, op.name, staticmethod(wrapper))
+            setattr(cls, op.name, op)
+
+            # add to ufunc mapping
+            cls._ufuncs[op.ufunc_name] = op.name
 
             return op
 
@@ -1017,12 +1074,37 @@ class ops(with_metaclass(OpsMeta, object)):
         """
         return cls.get_operation(*args, **kwargs)
 
+    @classmethod
+    def get_ufunc_operation(cls, ufunc):
+        """
+        Returns an operation that was previously registered to handle a NumPy *ufunc*, which can be
+        a string or the function itself. *None* is returned when no operation was found to handle
+        the function.
+        """
+        ufunc_name = ufunc if isinstance(ufunc, string_types) else ufunc.__name__
+
+        if ufunc_name not in cls._ufuncs:
+            return None
+
+        op_name = cls._ufuncs[ufunc_name]
+        return cls.get_operation(op_name)
+
+    @classmethod
+    def rebuilt_ufunc_cache(cls):
+        """
+        Rebuilts the internal cache of ufuncs.
+        """
+        cls._ufuncs.clear()
+        for name, op in cls._instances.items():
+            if op.ufunc_name:
+                cls._ufuncs[op.ufunc_name] = name
+
 
 #
 # pre-registered operations
 #
 
-@ops.register
+@ops.register(ufunc="add")
 def add(x, n):
     """ add(x, n)
     Addition function.
@@ -1035,7 +1117,7 @@ def add(x, n):
     return 1.
 
 
-@ops.register
+@ops.register(ufunc="subtract")
 def sub(x, n):
     """ sub(x, n)
     Subtraction function.
@@ -1048,7 +1130,7 @@ def sub(x, n):
     return 1.
 
 
-@ops.register
+@ops.register(ufunc="multiply")
 def mul(x, n):
     """ mul(x, n)
     Multiplication function.
@@ -1061,7 +1143,7 @@ def mul(x, n):
     return n
 
 
-@ops.register
+@ops.register(ufunc="divide")
 def div(x, n):
     """ div(x, n)
     Division function.
@@ -1074,7 +1156,7 @@ def div(x, n):
     return 1. / n
 
 
-@ops.register
+@ops.register(ufunc="power")
 def pow(x, n):
     """ pow(x, n)
     Power function.
@@ -1087,7 +1169,7 @@ def pow(x, n):
     return n * x**(n - 1.)
 
 
-@ops.register
+@ops.register(ufunc="exp")
 def exp(x):
     """ exp(x)
     Exponential function.
@@ -1098,7 +1180,7 @@ def exp(x):
 exp.derivative = exp.function
 
 
-@ops.register
+@ops.register(ufunc="log")
 def log(x, base=None):
     """ log(x, base=e)
     Logarithmic function.
@@ -1121,7 +1203,33 @@ def log(x, base=None):
         return 1. / (x * infer_math(x).log(base))
 
 
-@ops.register
+@ops.register(ufunc="log10")
+def log10(x):
+    """ log10(x)
+    Logarithmic function with base 10.
+    """
+    return log.function(x, base=10.)
+
+
+@log10.derive
+def log10(x):
+    return log.derivative(x, base=10.)
+
+
+@ops.register(ufunc="log2")
+def log2(x):
+    """ log2(x)
+    Logarithmic function with base 2.
+    """
+    return log.function(x, base=2.)
+
+
+@log2.derive
+def log2(x):
+    return log.derivative(x, base=2.)
+
+
+@ops.register(ufunc="sqrt")
 def sqrt(x):
     """ sqrt(x)
     Square root function.
@@ -1134,7 +1242,7 @@ def sqrt(x):
     return 1. / (2 * infer_math(x).sqrt(x))
 
 
-@ops.register
+@ops.register(ufunc="sin")
 def sin(x):
     """ sin(x)
     Trigonometric sin function.
@@ -1147,7 +1255,7 @@ def sin(x):
     return infer_math(x).cos(x)
 
 
-@ops.register
+@ops.register(ufunc="cos")
 def cos(x):
     """ cos(x)
     Trigonometric cos function.
@@ -1160,7 +1268,7 @@ def cos(x):
     return -infer_math(x).sin(x)
 
 
-@ops.register
+@ops.register(ufunc="tan")
 def tan(x):
     """ tan(x)
     Trigonometric tan function.
@@ -1173,7 +1281,7 @@ def tan(x):
     return 1. / infer_math(x).cos(x)**2.
 
 
-@ops.register
+@ops.register(ufunc="arcsin")
 def asin(x):
     """ asin(x)
     Trigonometric arc sin function.
@@ -1190,7 +1298,7 @@ def asin(x):
     return 1. / infer_math(x).sqrt(1 - x**2.)
 
 
-@ops.register
+@ops.register(ufunc="arccos")
 def acos(x):
     """ acos(x)
     Trigonometric arc cos function.
@@ -1207,7 +1315,7 @@ def acos(x):
     return -1. / infer_math(x).sqrt(1 - x**2.)
 
 
-@ops.register
+@ops.register(ufunc="arctan")
 def atan(x):
     """ tan(x)
     Trigonometric arc tan function.
@@ -1224,7 +1332,7 @@ def atan(x):
     return 1. / (1 + x**2.)
 
 
-@ops.register
+@ops.register(ufunc="sinh")
 def sinh(x):
     """ sinh(x)
     Hyperbolic sin function.
@@ -1237,7 +1345,7 @@ def sinh(x):
     return infer_math(x).cosh(x)
 
 
-@ops.register
+@ops.register(ufunc="cosh")
 def cosh(x):
     """ cosh(x)
     Hyperbolic cos function.
@@ -1250,7 +1358,7 @@ def cosh(x):
     return infer_math(x).sinh(x)
 
 
-@ops.register
+@ops.register(ufunc="tanh")
 def tanh(x):
     """ tanh(x)
     Hyperbolic tan function.
@@ -1263,7 +1371,7 @@ def tanh(x):
     return 1. / infer_math(x).cosh(x)**2.
 
 
-@ops.register
+@ops.register(ufunc="arcsinh")
 def asinh(x):
     """ asinh(x)
     Hyperbolic arc sin function.
@@ -1275,7 +1383,7 @@ def asinh(x):
         return _math.arcsinh(x)
 
 
-@ops.register
+@ops.register(ufunc="arccosh")
 def acosh(x):
     """ acosh(x)
     Hyperbolic arc cos function.
@@ -1291,7 +1399,7 @@ asinh.derivative = acosh.function
 acosh.derivative = asinh.function
 
 
-@ops.register
+@ops.register(ufunc="arctanh")
 def atanh(x):
     """ atanh(x)
     Hyperbolic arc tan function.
