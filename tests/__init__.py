@@ -291,10 +291,10 @@ class TestCase(unittest.TestCase):
         self.assertAlmostEqual(num.u("C", DOWN), 3.)
 
         num = np.exp(Number(np.array([1., 2.]), 3.))
-        self.assertAlmostEqual(num.nominal[0], 2.718282, 6)
-        self.assertAlmostEqual(num.nominal[1], 7.389056, 6)
-        self.assertAlmostEqual(num.get(UP)[0], 10.873127, 6)
-        self.assertAlmostEqual(num.get(UP)[1], 29.556225, 6)
+        self.assertAlmostEqual(num.nominal[0], 2.71828, 4)
+        self.assertAlmostEqual(num.nominal[1], 7.38906, 4)
+        self.assertAlmostEqual(num.get(UP)[0], 10.87313, 4)
+        self.assertAlmostEqual(num.get(UP)[1], 29.55623, 4)
 
     def test_op_pow(self):
         num = ops.pow(self.num, 2)
