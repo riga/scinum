@@ -14,12 +14,15 @@ import unittest
 base = os.path.normpath(os.path.join(os.path.abspath(__file__), "../.."))
 sys.path.append(base)
 from scinum import (
-    Number, ops, HAS_NUMPY, split_value, match_precision, round_uncertainty, round_value,
-    infer_si_prefix,
+    Number, ops, HAS_NUMPY, HAS_UNCERTAINTIES, split_value, match_precision, calculate_uncertainty,
+    round_uncertainty, round_value, infer_si_prefix,
 )
 
 if HAS_NUMPY:
     import numpy as np
+
+if HAS_UNCERTAINTIES:
+    from uncertainties import ufloat
 
 UP = Number.UP
 DOWN = Number.DOWN
@@ -27,6 +30,10 @@ DOWN = Number.DOWN
 
 def if_numpy(func):
     return func if HAS_NUMPY else (lambda self: None)
+
+
+def if_uncertainties(func):
+    return func if HAS_UNCERTAINTIES else (lambda self: None)
 
 
 def ptgr(*args):
@@ -84,6 +91,32 @@ class TestCase(unittest.TestCase):
         num.set_uncertainty("A", np.arange(5, 10))
         with self.assertRaises(ValueError):
             num.set_uncertainty("B", np.arange(5, 9))
+
+    @if_uncertainties
+    def test_constructor_ufloat(self):
+        num = Number(ufloat(42, 5))
+        self.assertEqual(num.nominal, 42.)
+        self.assertEqual(num.get_uncertainty(Number.DEFAULT), (5., 5.))
+
+        with self.assertRaises(ValueError):
+            Number(ufloat(42, 5), uncertainties={"other_error": 123})
+
+        num = Number(ufloat(42, 5, tag="foo"))
+        self.assertEqual(num.get_uncertainty("foo"), (5., 5.))
+
+        num = Number(ufloat(42, 5) + ufloat(2, 2))
+        self.assertEqual(num.nominal, 44.)
+        self.assertEqual(num.get_uncertainty(Number.DEFAULT), (7., 7.))
+
+        num = Number(ufloat(42, 5, tag="foo") + ufloat(2, 2, tag="bar"))
+        self.assertEqual(num.nominal, 44.)
+        self.assertEqual(num.get_uncertainty("foo"), (5., 5.))
+        self.assertEqual(num.get_uncertainty("bar"), (2., 2.))
+
+        num = Number(ufloat(42, 5, tag="foo") + ufloat(2, 2, tag="bar") + ufloat(1, 1, tag="bar"))
+        self.assertEqual(num.nominal, 45.)
+        self.assertEqual(num.get_uncertainty("foo"), (5., 5.))
+        self.assertEqual(num.get_uncertainty("bar"), (3., 3.))
 
     def test_copy(self):
         num = self.num.copy()
@@ -340,6 +373,12 @@ class TestCase(unittest.TestCase):
         a = np.array([1., 0.123, -42.5, 0.])
         self.assertEqual(tuple(match_precision(a, "1.")), (b"1", b"0", b"-42", b"0"))
         self.assertEqual(tuple(match_precision(a, ".1")), (b"1.0", b"0.1", b"-42.5", b"0.0"))
+
+    def test_calculate_uncertainty(self):
+        self.assertEqual(calculate_uncertainty([(3, 0.5), (4, 0.5)]), 2.5)
+        self.assertEqual(calculate_uncertainty([(3, 0.5), (4, 0.5)], rho=1), 3.5)
+        self.assertEqual(calculate_uncertainty([(3, 0.5), (4, 0.5)], rho={(0, 1): 1}), 3.5)
+        self.assertEqual(calculate_uncertainty([(3, 0.5), (4, 0.5)], rho={(1, 2): 1}), 2.5)
 
     def test_round_uncertainty(self):
         self.assertEqual(round_uncertainty(0.352, "pdg"), ("35", -2))

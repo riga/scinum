@@ -23,6 +23,7 @@ import functools
 import operator
 import types
 import decimal
+from collections import defaultdict
 
 # optional imports
 try:
@@ -31,6 +32,13 @@ try:
 except ImportError:
     np = None
     HAS_NUMPY = False
+
+try:
+    import uncertainties as _uncs
+    HAS_UNCERTAINTIES = True
+except ImportError:
+    _uncs = None
+    HAS_UNCERTAINTIES = False
 
 
 # version related adjustments
@@ -299,6 +307,14 @@ class Number(object):
 
         # numpy settings
         self.dtype = np.float32 if HAS_NUMPY else None
+
+        # prepare conversion from uncertainties.ufloat
+        if is_ufloat(nominal):
+            # uncertainties must not be set
+            if uncertainties:
+                raise ValueError("uncertainties must not be set when converting a ufloat")
+            # extract nominal value and uncertainties
+            nominal, uncertainties = parse_ufloat(nominal)
 
         # set initial values
         self.nominal = nominal
@@ -1003,7 +1019,7 @@ class ops(with_metaclass(OpsMeta, object)):
 
 
 #
-# Pre-registered operations.
+# pre-registered operations
 #
 
 @ops.register
@@ -1292,62 +1308,9 @@ def atanh(x):
     return 1. / (1. - x**2.)
 
 
+#
 # helper functions
-
-_op_map = {
-    "+": operator.add,
-    "-": operator.sub,
-    "*": operator.mul,
-    "/": operator.truediv,
-    "**": operator.pow,
-}
-
-_op_map_reverse = dict(zip(_op_map.values(), _op_map.keys()))
-
-
-def combine_uncertainties(op, unc1, unc2, nom1=None, nom2=None, rho=0.):
-    """
-    Combines two uncertainties *unc1* and *unc2* according to an operator *op* which must be either
-    ``"+"``, ``"-"``, ``"*"``, ``"/"``, or ``"**"``. The three latter operators require that you
-    also pass the nominal values *nom1* and *nom2*, respectively. The correlation can be configured
-    via *rho*.
-    """
-    # operator valid?
-    if op in _op_map:
-        f = _op_map[op]
-    elif op in _op_map_reverse:
-        f = op
-        op = _op_map_reverse[op]
-    else:
-        raise ValueError("unknown operator: {}".format(op))
-
-    # prepare values for combination, depends on operator
-    if op in ("*", "/", "**"):
-        if nom1 is None or nom2 is None:
-            raise ValueError("operator '{}' requires nominal values".format(op))
-        # numpy-safe conversion to float
-        nom1 *= 1.
-        nom2 *= 1.
-        # convert uncertainties to relative values, taking into account zeros
-        if unc1 or nom1:
-            unc1 /= nom1
-        if unc2 or nom2:
-            unc2 /= nom2
-        # determine
-        nom = abs(f(nom1, nom2))
-    else:
-        nom = 1.
-
-    # combined formula
-    if op == "**":
-        return nom * abs(nom2) * (unc1**2. + (math.log(nom1) * unc2)**2. + 2 * rho *
-            math.log(nom1) * unc1 * unc2)**0.5
-    else:
-        # flip rho for sub and div
-        if op in ("-", "/"):
-            rho = -rho
-        return nom * (unc1**2. + unc2**2. + 2. * rho * unc1 * unc2)**0.5
-
+#
 
 def ensure_number(num, *args, **kwargs):
     """
@@ -1370,6 +1333,36 @@ def is_numpy(x):
     Returns *True* when numpy is available on your system and *x* is a numpy type.
     """
     return HAS_NUMPY and type(x).__module__ == np.__name__
+
+
+def is_ufloat(x):
+    """
+    Returns *True* when the "uncertainties" package is available on your system and *x* is a
+    ``ufloat``.
+    """
+    return HAS_UNCERTAINTIES and isinstance(x, _uncs.core.AffineScalarFunc)
+
+
+def parse_ufloat(x, default_tag=Number.DEFAULT):
+    """
+    Takes a ``ufloat`` object *x* from the "uncertainties" package and returns a tuple with two
+    elements containing its nominal value and a dictionary with its uncertainties. When the error
+    components of *x* contain multiple uncertainties with the same name, they are combined under the
+    assumption of full correlation. When an error component is not tagged, *default_tag* is used.
+    """
+    # store error components to be combined per tag
+    components = defaultdict(list)
+    for comp, value in x.error_components().items():
+        name = comp.tag if comp.tag is not None else default_tag
+        components[name].append((x.derivatives[comp], value))
+
+    # combine components to uncertainties, assume full correlation
+    uncertainties = {
+        name: calculate_uncertainty(terms, rho=1.)
+        for name, terms in components.items()
+    }
+
+    return x.nominal_value, uncertainties
 
 
 def infer_math(x):
@@ -1484,6 +1477,100 @@ def _infer_precision(unc, sig, mag, method):
             prec += 1
 
     return prec, sig, mag
+
+
+_op_map = {
+    "+": operator.add,
+    "-": operator.sub,
+    "*": operator.mul,
+    "/": operator.truediv,
+    "**": operator.pow,
+}
+
+_op_map_reverse = dict(zip(_op_map.values(), _op_map.keys()))
+
+
+def calculate_uncertainty(terms, rho=0.):
+    """
+    Generically calculates the uncertainty of a quantity that depends on multiple *terms*. Each term
+    is expected to be a 2-tuple containing the derivative and the uncertainty of the term.
+    Correlations can be defined via *rho*. When *rho* is a numner, all correlations are set to this
+    value. It can also be a mapping of a 2-tuple, the two indices of the terms to describe, to their
+    correlation coefficient. In case the indices of two terms are not included in this mapping, they
+    are assumed to be uncorrelated. Example:
+
+    .. code-block:: python
+
+        calculate_uncertainty([(3, 0.5), (4, 0.5)])
+        # uncorrelated
+        # -> 2.5
+
+        calculate_uncertainty([(3, 0.5), (4, 0.5)], rho=1)
+        # fully correlated
+        # -> 3.5
+
+        calculate_uncertainty([(3, 0.5), (4, 0.5)], rho={(0, 1): 1})
+        # fully correlated
+        # -> 3.5
+
+        calculate_uncertainty([(3, 0.5), (4, 0.5)], rho={(1, 2): 1})
+        # no rho value defined for pair (0, 1), assumes zero correlation
+        # -> 2.5
+    """
+    # sum over squaresall single terms
+    variance = sum((derivative * uncertainty)**2. for derivative, uncertainty in terms)
+
+    # add second order terms of all pairs
+    for i in range(len(terms) - 1):
+        for j in range(i + 1, len(terms)):
+            _rho = rho.get((i, j), 0.) if isinstance(rho, dict) else rho
+            variance += 2. * terms[i][0] * terms[j][0] * _rho * terms[i][1] * terms[j][1]
+
+    return variance**0.5
+
+
+def combine_uncertainties(op, unc1, unc2, nom1=None, nom2=None, rho=0.):
+    """
+    Combines two uncertainties *unc1* and *unc2* according to an operator *op* which must be either
+    ``"+"``, ``"-"``, ``"*"``, ``"/"``, or ``"**"``. The three latter operators require that you
+    also pass the nominal values *nom1* and *nom2*, respectively. The correlation can be configured
+    via *rho*.
+    """
+    # operator valid?
+    if op in _op_map:
+        f = _op_map[op]
+    elif op in _op_map_reverse:
+        f = op
+        op = _op_map_reverse[op]
+    else:
+        raise ValueError("unknown operator: {}".format(op))
+
+    # prepare values for combination, depends on operator
+    if op in ("*", "/", "**"):
+        if nom1 is None or nom2 is None:
+            raise ValueError("operator '{}' requires nominal values".format(op))
+        # numpy-safe conversion to float
+        nom1 *= 1.
+        nom2 *= 1.
+        # convert uncertainties to relative values, taking into account zeros
+        if unc1 or nom1:
+            unc1 /= nom1
+        if unc2 or nom2:
+            unc2 /= nom2
+        # determine
+        nom = abs(f(nom1, nom2))
+    else:
+        nom = 1.
+
+    # combined formula
+    if op == "**":
+        return nom * abs(nom2) * (unc1**2. + (math.log(nom1) * unc2)**2. + 2 * rho *
+            math.log(nom1) * unc1 * unc2)**0.5
+    else:
+        # flip rho for sub and div
+        if op in ("-", "/"):
+            rho = -rho
+        return nom * (unc1**2. + unc2**2. + 2. * rho * unc1 * unc2)**0.5
 
 
 def round_uncertainty(unc, method="publication"):
