@@ -298,7 +298,7 @@ class TestCase(unittest.TestCase):
 
         self.assertFalse("foo" in ops)
 
-        @ops.register(ufunc="abc")
+        @ops.register(ufunc="absolute")
         def foo(x, a, b, c):
             return a + b * x + c * x ** 2
 
@@ -306,8 +306,10 @@ class TestCase(unittest.TestCase):
         self.assertEqual(ops.get_operation("foo"), foo)
         self.assertIsNone(foo.derivative)
 
-        self.assertEqual(foo.ufunc_name, "abc")
-        self.assertEqual(ops.get_ufunc_operation("abc"), foo)
+        if HAS_NUMPY:
+            self.assertEqual(foo.ufuncs[0], np.abs)
+            self.assertEqual(foo.ufuncs[0].__name__, "absolute")
+            self.assertEqual(ops.get_ufunc_operation("abs"), foo)
 
         @foo.derive
         def foo(x, a, b, c):

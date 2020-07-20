@@ -932,15 +932,21 @@ class Operation(object):
        read-only
 
        The name of the operation.
+
+    .. py:attribute:: ufuncs
+       type: list
+       read-only
+
+       List of ufunc objects that this operation handles.
     """
 
-    def __init__(self, function, derivative=None, name=None, ufunc_name=None):
+    def __init__(self, function, derivative=None, name=None, ufuncs=None):
         super(Operation, self).__init__()
 
         self.function = function
         self.derivative = derivative
         self._name = name or function.__name__
-        self._ufunc_name = ufunc_name
+        self._ufuncs = ufuncs or []
 
         # decorator for setting the derivative
         def derive(derivative):
@@ -953,8 +959,8 @@ class Operation(object):
         return self._name
 
     @property
-    def ufunc_name(self):
-        return self._ufunc_name
+    def ufuncs(self):
+        return self._ufuncs
 
     def __repr__(self):
         return "<{} '{}' at {}>".format(self.__class__.__name__, self.name, hex(id(self)))
@@ -1003,7 +1009,7 @@ class ops(with_metaclass(OpsMeta, object)):
     # registered operations mapped to their names
     _instances = {}
 
-    # mapping of ufunc names to operation names for faster lookup
+    # mapping of ufunc to operation names for faster lookup
     _ufuncs = {}
 
     @classmethod
@@ -1034,24 +1040,31 @@ class ops(with_metaclass(OpsMeta, object)):
         example above as most of them are just composite operations whose derivatives are already
         known.
 
-        To comply with NumPy's ufuncs (https://numpy.org/neps/nep-0013-ufunc-overrides.html) that
-        are handled by :py:meth:`Number.__array_ufunc__`, an operation might define a *ufunc* name
-        to signalize that it should be used when a ufunc with that name is called with a number
-        instance as its argument.
+        To comply with numpy's ufuncs (https://numpy.org/neps/nep-0013-ufunc-overrides.html) that
+        are dispatched by :py:meth:`Number.__array_ufunc__`, an operation might register the *ufunc*
+        object that it handles. When *ufunc* is a string, it is interpreted as a name of a numpy
+        function. It can also be a list to signalize that it handles more than one function.
         """
-        ufunc_name = None
+        # prepare ufuncs
+        ufuncs = []
         if ufunc is not None:
-            ufunc_name = ufunc if isinstance(ufunc, string_types) else ufunc.__name__
+            for u in (ufunc if isinstance(ufunc, (list, tuple)) else [ufunc]):
+                if isinstance(u, string_types):
+                    if not HAS_NUMPY:
+                        continue
+                    u = getattr(np, u)
+                ufuncs.append(u)
 
         def register(function):
-            op = Operation(function, name=name, ufunc_name=ufunc_name)
+            op = Operation(function, name=name, ufuncs=ufuncs)
 
             # save as class attribute and also in _instances
             cls._instances[op.name] = op
             setattr(cls, op.name, op)
 
-            # add to ufunc mapping
-            cls._ufuncs[op.ufunc_name] = op.name
+            # add ufuncs to mapping
+            for ufunc in op.ufuncs:
+                cls._ufuncs[ufunc] = op.name
 
             return op
 
@@ -1081,12 +1094,15 @@ class ops(with_metaclass(OpsMeta, object)):
         a string or the function itself. *None* is returned when no operation was found to handle
         the function.
         """
-        ufunc_name = ufunc if isinstance(ufunc, string_types) else ufunc.__name__
+        if isinstance(ufunc, string_types):
+            if not HAS_NUMPY:
+                return None
+            ufunc = getattr(np, ufunc)
 
-        if ufunc_name not in cls._ufuncs:
+        if ufunc not in cls._ufuncs:
             return None
 
-        op_name = cls._ufuncs[ufunc_name]
+        op_name = cls._ufuncs[ufunc]
         return cls.get_operation(op_name)
 
     @classmethod
@@ -1096,8 +1112,8 @@ class ops(with_metaclass(OpsMeta, object)):
         """
         cls._ufuncs.clear()
         for name, op in cls._instances.items():
-            if op.ufunc_name:
-                cls._ufuncs[op.ufunc_name] = name
+            for ufunc in op.ufuncs:
+                cls._ufuncs[ufunc] = name
 
 
 #
