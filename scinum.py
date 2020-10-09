@@ -1669,6 +1669,14 @@ def combine_uncertainties(op, unc1, unc2, nom1=None, nom2=None, rho=0.):
     else:
         raise ValueError("unknown operator: {}".format(op))
 
+    # when numpy arrays, the shapes of unc and nom must match
+    if is_numpy(unc1) and is_numpy(nom1) and unc1.shape != nom1.shape:
+        raise ValueError("the shape of unc1 and nom1 must be equal, found {} and {}".format(
+            unc1.shape, nom1.shape))
+    if is_numpy(unc2) and is_numpy(nom2) and unc2.shape != nom2.shape:
+        raise ValueError("the shape of unc2 and nom2 must be equal, found {} and {}".format(
+            unc2.shape, nom2.shape))
+
     # prepare values for combination, depends on operator
     if op in ("*", "/", "**"):
         if nom1 is None or nom2 is None:
@@ -1677,12 +1685,25 @@ def combine_uncertainties(op, unc1, unc2, nom1=None, nom2=None, rho=0.):
         nom1 *= 1.
         nom2 *= 1.
         # convert uncertainties to relative values, taking into account zeros
-        non_zero = lambda n: np.any(n != 0) if is_numpy(n) else n != 0
-        if non_zero(unc1) or non_zero(nom1):
+        if is_numpy(nom1) and is_numpy(unc1):
+            unc1 = np.array(unc1)
+            non_zero = nom1 != 0
+            unc1[non_zero] = unc1[non_zero] / nom1[non_zero]
+            unc1[~non_zero] = 0.
+        elif nom1:
             unc1 = unc1 / nom1
-        if non_zero(unc2) or non_zero(nom2):
+        else:
+            unc1 = 0.
+        if is_numpy(nom2) and is_numpy(unc2):
+            unc2 = np.array(unc2)
+            non_zero = nom2 != 0
+            unc2[non_zero] = unc2[non_zero] / nom2[non_zero]
+            unc2[~non_zero] = 0.
+        elif nom2:
             unc2 = unc2 / nom2
-        # determine
+        else:
+            unc2 = 0.
+        # determine the nominal value
         nom = abs(f(nom1, nom2))
     else:
         nom = 1.
