@@ -1677,10 +1677,11 @@ def combine_uncertainties(op, unc1, unc2, nom1=None, nom2=None, rho=0.):
         nom1 *= 1.
         nom2 *= 1.
         # convert uncertainties to relative values, taking into account zeros
-        if unc1 or nom1:
-            unc1 /= nom1
-        if unc2 or nom2:
-            unc2 /= nom2
+        non_zero = lambda n: np.any(n != 0) if is_numpy(n) else n != 0
+        if non_zero(unc1) or non_zero(nom1):
+            unc1 = unc1 / nom1
+        if non_zero(unc2) or non_zero(nom2):
+            unc2 = unc2 / nom2
         # determine
         nom = abs(f(nom1, nom2))
     else:

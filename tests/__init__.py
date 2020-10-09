@@ -199,6 +199,23 @@ class TestCase(unittest.TestCase):
             self.assertEqual(self.num.get(UP, name, diff=True, factor=True), unc[0] / nom)
             self.assertEqual(self.num.get(DOWN, name, diff=True, factor=True), unc[1] / nom)
 
+    @if_numpy
+    def test_uncertainty_combination_numpy(self):
+        num = Number(np.array([2, 4, 6]), 2)
+        num2 = Number(np.array([1, 2, 3]), 1)
+
+        # fully correlated division
+        d = num / num2
+        self.assertEqual(tuple(d()), (2., 2., 2.))
+        self.assertEqual(tuple(d.u(direction=UP)), (0., 0., 0.))
+
+        # uncorrelated division
+        d = num.div(num2, rho=0., inplace=False)
+        self.assertEqual(tuple(d()), (2., 2., 2.))
+        self.assertAlmostEqual(d.u(direction=UP)[0], 2. / 1. * 2.**0.5, 6)
+        self.assertAlmostEqual(d.u(direction=UP)[1], 2. / 2. * 2.**0.5, 6)
+        self.assertAlmostEqual(d.u(direction=UP)[2], 2. / 3. * 2.**0.5, 6)
+
     def test_uncertainty_propagation(self):
         # ops with constants
         num = self.num + 2
