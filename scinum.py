@@ -474,8 +474,8 @@ class Number(object):
         r"""
         Returns a readable string representiation of the number. *format* is used to format
         non-NumPy nominal and uncertainty values. It can be a string such as ``"%d"``, a function
-        that is called with the value to format, or a rounding method as accepted by
-        :py:meth:`round_value`. When *None* (the default), :py:attr:`default_format` is used. All
+        that is called with the value to format, or a rounding function as accepted by
+        :py:func:`round_value`. When *None* (the default), :py:attr:`default_format` is used. All
         keyword arguments except wildcard *kwargs* are only used to format non-NumPy values. In case
         of NumPy objects, *kwargs* are passed to `numpy.array2string
         <https://docs.scipy.org/doc/numpy/reference/generated/numpy.array2string.html>`_.
@@ -546,6 +546,10 @@ class Number(object):
 
             # special formats implemented by round_value
             if format in ("pub", "publication", "pdg", "one", "onedigit"):
+                # complain when no uncertainties exist
+                if not ups:
+                    raise Exception("cannot apply format '{}' when no uncertainties exist".format(
+                        format))
                 nominal, (ups, downs), _mag = round_value(self.nominal, ups, downs, method=format)
                 fmt = lambda x: match_precision(float(x) * 10.**_mag, 10.**_mag)
 
@@ -1805,7 +1809,7 @@ def round_value(val, unc=None, unc_down=None, method="publication"):
     if isinstance(val, Number):
         unc, unc_down = val.get_uncertainty()
         val = val.nominal
-    elif unc is None:
+    elif not unc and unc != 0:
         raise ValueError("unc must be set when val is not a Number instance")
 
     # prepare unc values
