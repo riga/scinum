@@ -742,7 +742,7 @@ class Number(object):
         uncs = {}
         default = (0., 0.)
         for name in set(num.uncertainties.keys()) | set(other.uncertainties.keys()):
-            _rho = rho if not isinstance(rho, dict) else rho.get(name, 1.)
+            _rho = rho.get(name, 1.) if isinstance(rho, dict) else rho
 
             num_unc = num.get_uncertainty(name, default=default)
             other_unc = other.get_uncertainty(name, default=default)

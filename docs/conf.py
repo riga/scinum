@@ -48,4 +48,4 @@ autodoc_member_order = "bysource"
 
 
 def setup(app):
-    app.add_stylesheet("styles.css")
+    app.add_css_file("styles.css")
