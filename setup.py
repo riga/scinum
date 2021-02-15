@@ -28,6 +28,13 @@ classifiers = [
 ]
 
 
+# helper to read non-empty, stripped lines from an opened file
+def readlines(f):
+    for line in f.readlines():
+        if line.strip():
+            yield line.strip()
+
+
 # read the readme file
 with open(os.path.join(this_dir, "README.md"), "r") as f:
     long_description = f.read()
@@ -35,7 +42,12 @@ with open(os.path.join(this_dir, "README.md"), "r") as f:
 
 # load installation requirements
 with open(os.path.join(this_dir, "requirements.txt"), "r") as f:
-    install_requires = [line.strip() for line in f.readlines() if line.strip()]
+    install_requires = list(readlines(f))
+
+
+# load docs requirements
+with open(os.path.join(this_dir, "requirements_docs.txt"), "r") as f:
+    docs_requires = [line for line in readlines(f) if line not in install_requires]
 
 
 setup(
@@ -51,6 +63,9 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     install_requires=install_requires,
+    extras_require={
+        "docs": docs_requires,
+    },
     python_requires=">=2.7",
     zip_safe=False,
     py_modules=[sn.__name__],
