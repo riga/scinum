@@ -455,7 +455,7 @@ class TestCase(unittest.TestCase):
         self.assertEqual(tuple(unc_strs), ("46", "46"))
         self.assertEqual(mag, -2)
 
-        with self.assertRaises(ValueError):
+        with self.assertRaises(TypeError):
             round_value(1.23)
 
     def test_round_value_list(self):
@@ -471,6 +471,14 @@ class TestCase(unittest.TestCase):
         self.assertEqual(tuple(val_str), (b"1230", b"4560", b"10000"))
         self.assertEqual(tuple(unc_strs[0]), (b"457", b"78", b"998"))
         self.assertEqual(mag, -3)
+
+        val_str, unc_strs, mag = round_value(np.array([1.23, 4.56, 10]), 1)
+        self.assertEqual(tuple(val_str), (b"123", b"456", b"1000"))
+        self.assertEqual(tuple(unc_strs[0]), (b"100", b"100", b"100"))
+        self.assertEqual(mag, -2)
+
+        with self.assertRaises(TypeError):
+            round_value(np.array([1.23, 4.56, 10]))
 
     def test_infer_si_prefix(self):
         self.assertEqual(infer_si_prefix(0), ("", 0))

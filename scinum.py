@@ -1440,6 +1440,16 @@ def atanh(x):
 # helper functions
 #
 
+def try_float(x):
+    """
+    Tries to convert a value *x* to float and returns it on success, and *None* otherwise.
+    """
+    try:
+        return float(x)
+    except:
+        return None
+
+
 def ensure_number(num, *args, **kwargs):
     """
     Returns *num* again if it is an instance of :py:class:`Number`, or uses all passed arguments to
@@ -1783,9 +1793,9 @@ def round_uncertainty(unc, method="publication"):
 def round_value(val, unc=None, unc_down=None, method="publication"):
     """
     Rounds a number *val* with a single symmetric uncertainty *unc* or asymmetric uncertainties
-    *unc* (interpreted as *up*) and *unc_down*, and calculates the orders of their magnitudes. They
-    both can be a float or a list of floats for simultaneous evaluation. When *val* is a
-    :py:class:`Number` instance, its combined uncertainty is used instead. Returns a 3-tuple
+    *unc* (interpreted as the *up* variation) and *unc_down*, and calculates the orders of their
+    magnitudes. They both can be a float or a list of floats for simultaneous evaluation. When *val*
+    is a :py:class:`Number` instance, its combined uncertainty is used instead. Returns a 3-tuple
     containing:
 
     - The string representation of the central value.
@@ -1809,8 +1819,6 @@ def round_value(val, unc=None, unc_down=None, method="publication"):
     if isinstance(val, Number):
         unc, unc_down = val.get_uncertainty()
         val = val.nominal
-    elif not unc and unc != 0:
-        raise ValueError("unc must be set when val is not a Number instance")
 
     # prepare unc values
     asym = unc_down is not None
@@ -1819,18 +1827,19 @@ def round_value(val, unc=None, unc_down=None, method="publication"):
         unc_down = unc_up
 
     if not is_numpy(val):
-        # treat as lists for simultaneous rounding when not numpy arrays
+        # treat as lists for simultaneous rounding
         passed_list = isinstance(unc_up, (list, tuple)) or isinstance(unc_down, (list, tuple))
         unc_up = make_list(unc_up)
         unc_down = make_list(unc_down)
 
         # sanity checks
         if len(unc_up) != len(unc_down):
-            raise ValueError("uncertainties should have same length when passed as lists")
-        elif any(unc < 0 for unc in unc_up):
-            raise ValueError("up uncertainties must be positive: {}".format(unc_up))
-        elif any(unc < 0 for unc in unc_down):
-            raise ValueError("down uncertainties must be positive: {}".format(unc_down))
+            raise ValueError("uncertainties should have same length when passed as sequences")
+        for u in unc_up + unc_down:
+            if not try_float(u):
+                raise TypeError("uncertainties must be convertible to float: {}".format(u))
+            if u < 0:
+                raise ValueError("uncertainties must be positive: {}".format(u))
 
         # to determine the precision, use the uncertainty with the smallest magnitude
         ref_mag = min(round_uncertainty(u, method=method)[1] for u in unc_up + unc_down)
@@ -1847,11 +1856,23 @@ def round_value(val, unc=None, unc_down=None, method="publication"):
             return (val_str, [up_strs[0], down_strs[0]] if asym else [up_strs[0]], ref_mag)
 
     else:
+        # check uncertainties and cast to arrays when plain numbers
+        if not is_numpy(unc_up):
+            if not try_float(unc_up):
+                raise TypeError("uncertainty is neither an array nor float compatible: {}".format(
+                    unc_up))
+            unc_up = unc_up * np.ones_like(val)
+        if not is_numpy(unc_down):
+            if not try_float(unc_down):
+                raise TypeError("uncertainty is neither an array nor float compatible: {}".format(
+                    unc_down))
+            unc_down = unc_down * np.ones_like(val)
+
         # sanity checks
         if (unc_up < 0).any():
-            raise ValueError("up uncertainties must be positive: {}".format(unc_up))
+            raise ValueError("uncertainties must be positive: {}".format(unc_up))
         elif (unc_down < 0).any():
-            raise ValueError("down uncertainties must be positive: {}".format(unc_down))
+            raise ValueError("uncertainties must be positive: {}".format(unc_down))
 
         # to determine the precision, use the uncertainty with the smallest magnitude
         ref_mag_up = round_uncertainty(unc_up, method=method)[1]
