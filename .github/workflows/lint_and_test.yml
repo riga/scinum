@@ -55,7 +55,7 @@ jobs:
           - "3.6"
           - "3.8"
           - "3.9"
-    name: test (python ${{ matrix.python }})
+    name: test (python ${{ matrix.python-version }})
     steps:
       - name: Checkout 🛎️
         uses: actions/checkout@v2
