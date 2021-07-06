@@ -15,7 +15,7 @@ jobs:
 
       - name: Install dependencies ☕️
         run: |
-          pip install --U pip
+          pip install -U pip
           pip install -r requirements.txt
           pip install flake8
 
@@ -37,7 +37,7 @@ jobs:
 
       - name: Install dependencies ☕️
         run: |
-          pip install --U pip
+          pip install -U pip
           pip install twine
 
       - name: Check bundling 📦
@@ -69,7 +69,7 @@ jobs:
 
       - name: Install dependencies ☕️
         run: |
-          pip install --U pip
+          pip install -U pip
           pip install -r requirements.txt
 
       - name: Test 🎢
