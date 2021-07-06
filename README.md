@@ -1,6 +1,6 @@
 ![scinum logo](https://raw.githubusercontent.com/riga/scinum/master/logo250.png "scinum logo")
 
-[![Build Status](https://travis-ci.org/riga/scinum.svg?branch=master)](https://travis-ci.org/riga/scinum) [![Documentation Status](https://readthedocs.org/projects/scinum/badge/?version=latest)](http://scinum.readthedocs.org/en/latest/?badge=latest) [![Package Status](https://img.shields.io/pypi/v/scinum.svg?style=flat)](https://pypi.python.org/pypi/scinum) [![License](https://img.shields.io/github/license/riga/scinum.svg)](https://github.com/riga/scinum/blob/master/LICENSE) [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/riga/scinum/master?filepath=example.ipynb)
+[![Lint and test](https://github.com/riga/scinum/actions/workflows/lint_and_test.yml/badge.svg)](https://github.com/riga/scinum/actions/workflows/lint_and_test.yml) [![Documentation Status](https://readthedocs.org/projects/scinum/badge/?version=latest)](http://scinum.readthedocs.org/en/latest/?badge=latest) [![Package Status](https://img.shields.io/pypi/v/scinum.svg?style=flat)](https://pypi.python.org/pypi/scinum) [![License](https://img.shields.io/github/license/riga/scinum.svg)](https://github.com/riga/scinum/blob/master/LICENSE) [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/riga/scinum/master?filepath=example.ipynb)
 
 scinum provides a simple `Number` class that wraps plain floats or [NumPy](http://www.numpy.org/) arrays and adds support for multiple uncertainties, automatic (gaussian) error propagation, and scientific rounding.
 
