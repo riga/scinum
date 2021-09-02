@@ -13,7 +13,7 @@ __credits__ = ["Marcel Rieger"]
 __contact__ = "https://github.com/riga/scinum"
 __license__ = "BSD-3-Clause"
 __status__ = "Development"
-__version__ = "1.1.4"
+__version__ = "1.2.0"
 __all__ = [
     "Number", "Correlation", "DeferredResult", "Operation",
     "ops", "style_dict",
