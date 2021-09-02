@@ -19,6 +19,22 @@ Classes
    :members:
 
 
+``Correlation``
+---------------
+
+.. autoclass:: Correlation
+   :member-order: bysource
+   :members:
+
+
+``DeferredResult``
+------------------
+
+.. autoclass:: DeferredResult
+   :member-order: bysource
+   :members:
+
+
 ``ops``
 -------
 
