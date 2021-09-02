@@ -14,8 +14,8 @@ import unittest
 base = os.path.normpath(os.path.join(os.path.abspath(__file__), "../.."))
 sys.path.append(base)
 from scinum import (
-    Number, ops, HAS_NUMPY, HAS_UNCERTAINTIES, split_value, match_precision, calculate_uncertainty,
-    round_uncertainty, round_value, infer_si_prefix,
+    Number, Correlation, DeferredResult, ops, HAS_NUMPY, HAS_UNCERTAINTIES, split_value,
+    match_precision, calculate_uncertainty, round_uncertainty, round_value, infer_si_prefix,
 )
 
 if HAS_NUMPY:
@@ -489,3 +489,41 @@ class TestCase(unittest.TestCase):
 
         for n in range(-18, 19, 3):
             self.assertEqual(infer_si_prefix(10 ** n)[1], n)
+
+    def test_correlation(self):
+        c = Correlation(1.5, foo=0.5)
+        self.assertEqual(c.default, 1.5)
+        self.assertEqual(c.get("foo"), 0.5)
+        self.assertEqual(c.get("bar"), 1.5)
+        self.assertEqual(c.get("bar", 0.75), 0.75)
+
+        c = Correlation(foo=0.5)
+        with self.assertRaises(KeyError):
+            c.get("bar")
+
+        with self.assertRaises(Exception):
+            Correlation()
+
+        with self.assertRaises(Exception):
+            Correlation(1, 1)
+
+    def test_deferred_result(self):
+        c = Correlation(1.5, A=0.5)
+        d = self.num * c
+        self.assertIsInstance(d, DeferredResult)
+        self.assertEqual(d.number, self.num)
+        self.assertEqual(d.correlation, c)
+
+        self.assertIsInstance(c * self.num, DeferredResult)
+
+        with self.assertRaises(ValueError):
+            self.num + c
+
+    def test_deferred_resolution(self):
+        n = (self.num * Correlation(A=1)) + self.num
+        self.assertEqual(n.u("A"), (1.0, 1.0))
+        self.assertEqual(n.u("B"), (2.0, 2.0))
+
+        n = (self.num * Correlation(A=0)) + self.num
+        self.assertEqual(n.u("A"), (0.5**0.5, 0.5**0.5))
+        self.assertEqual(n.u("B"), (2.0, 2.0))

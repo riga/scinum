@@ -14,7 +14,11 @@ __contact__ = "https://github.com/riga/scinum"
 __license__ = "BSD-3-Clause"
 __status__ = "Development"
 __version__ = "1.1.4"
-__all__ = ["Number", "Operation", "ops", "style_dict", "REL", "ABS", "NOMINAL", "UP", "DOWN"]
+__all__ = [
+    "Number", "Correlation", "DeferredResult", "Operation",
+    "ops", "style_dict",
+    "REL", "ABS", "NOMINAL", "UP", "DOWN",
+]
 
 
 import sys
@@ -45,6 +49,10 @@ except ImportError:
 string_types = (str,)
 if sys.version_info.major < 3:
     string_types += (basestring,)  # noqa
+
+integer_types = (int,)
+if sys.version_info.major < 3:
+    integer_types += (long,)  # noqa
 
 
 # metaclass decorator from six package, credits to Benjamin Peterson
@@ -691,47 +699,70 @@ class Number(object):
 
     def add(self, *args, **kwargs):
         """ add(other, rho=1.0, inplace=True)
-        Adds an *other* number instance, propagating all uncertainties. Uncertainties with the same
-        name are combined with the correlation coefficient *rho*, which can be configured per
-        uncertainty when passed as a dict. When *inplace* is *False*, a new instance is returned.
+        Adds an *other* :py:class:`Number` or :py:class:`DeferredResult` instance, propagating all
+        uncertainties. Uncertainties with the same name are combined with the correlation *rho*,
+        which can either be a :py:class:`Correlation` instance, a dict with correlations defined per
+        uncertainty, or a plain float. When *inplace* is *False*, a new instance is returned.
         """
         return self._apply(operator.add, *args, **kwargs)
 
     def sub(self, *args, **kwargs):
         """ sub(other, rho=1.0, inplace=True)
-        Subtracts an *other* number instance, propagating all uncertainties. Uncertainties with the
-        same name are combined with the correlation coefficient *rho*, which can be configured per
-        uncertainty when passed as a dict. When *inplace* is *False*, a new instance is returned.
+        Subtracts an *other* :py:class:`Number` or :py:class:`DeferredResult` instance, propagating
+        all uncertainties. Uncertainties with the same name are combined with the correlation *rho*,
+        which can either be a :py:class:`Correlation` instance, a dict with correlations defined per
+        uncertainty, or a plain float. When *inplace* is *False*, a new instance is returned.
         """
         return self._apply(operator.sub, *args, **kwargs)
 
     def mul(self, *args, **kwargs):
         """ mul(other, rho=1.0, inplace=True)
-        Multiplies by an *other* number instance, propagating all uncertainties. Uncertainties with
-        the same name are combined with the correlation coefficient *rho*, which can be configured
-        per uncertainty when passed as a dict. When *inplace* is *False*, a new instance is
-        returned.
+        Multiplies by an *other* :py:class:`Number` or :py:class:`DeferredResult` instance,
+        propagating all uncertainties. Uncertainties with the same name are combined with the
+        correlation *rho*, which can either be a :py:class:`Correlation` instance, a dict with
+        correlations defined per uncertainty, or a plain float. When *inplace* is *False*, a new
+        instance is returned.
+
+        Unlike the other operations, *other* can also be a :py:class:`Correlation` instance, in
+        which case a :py:class:`DeferredResult` is returned to resolve the combination of
+        uncertainties later on.
         """
         return self._apply(operator.mul, *args, **kwargs)
 
     def div(self, *args, **kwargs):
         """ div(other, rho=1.0, inplace=True)
-        Divides by an *other* number instance, propagating all uncertainties. Uncertainties with the
-        same name are combined with the correlation coefficient *rho*, which can be configured per
-        uncertainty when passed as a dict. When *inplace* is *False*, a new instance is returned.
+        Divides by an *other* :py:class:`Number` or :py:class:`DeferredResult` instance, propagating
+        all uncertainties. Uncertainties with the same name are combined with the correlation *rho*,
+        which can either be a :py:class:`Correlation` instance, a dict with correlations defined per
+        uncertainty, or a plain float. When *inplace* is *False*, a new instance is returned.
         """
         return self._apply(operator.truediv, *args, **kwargs)
 
     def pow(self, *args, **kwargs):
         """ pow(other, rho=1.0, inplace=True)
-        Raises by the power of an *other* number instance, propagating all uncertainties.
-        Uncertainties with the same name are combined with the correlation coefficient *rho*, which
-        can be configured per uncertainty when passed as a dict. When *inplace* is *False*, a new
+        Raises by the power of an *other* :py:class:`Number` or :py:class:`DeferredResult` instance,
+        propagating all uncertainties. Uncertainties with the same name are combined with the
+        correlation *rho*, which can either be a :py:class:`Correlation` instance, a dict with
+        correlations defined per uncertainty, or a plain float. When *inplace* is *False*, a new
         instance is returned.
         """
         return self._apply(operator.pow, *args, **kwargs)
 
     def _apply(self, op, other, rho=1., inplace=True):
+        # when other is a correlation object and op is mul, return a deferred result that is
+        # resolved in the next operation
+        if isinstance(other, Correlation):
+            if op != operator.mul:
+                raise ValueError("cannot apply correlation object {} via operator {}, only mul is "
+                    "supported".format(other, op.__name__))
+            return DeferredResult(self, other)
+
+        # when other is a deferred result, use its number of correlation
+        if isinstance(other, DeferredResult):
+            rho = other.correlation
+            other = other.number
+
+        # prepare the number to update and the other number to apply
         num = self if inplace else self.copy()
         other = ensure_number(other)
 
@@ -742,11 +773,19 @@ class Number(object):
         uncs = {}
         default = (0., 0.)
         for name in set(num.uncertainties.keys()) | set(other.uncertainties.keys()):
-            _rho = rho.get(name, 1.) if isinstance(rho, dict) else rho
+            # get the correlation coefficient for this uncertainty
+            if isinstance(rho, Correlation):
+                _rho = rho.get(name, 1. if rho.default is None else rho.default)
+            elif isinstance(rho, dict):
+                _rho = rho.get(name, 1.)
+            else:
+                _rho = rho
 
+            # get uncertainty components
             num_unc = num.get_uncertainty(name, default=default)
             other_unc = other.get_uncertainty(name, default=default)
 
+            # combine them
             uncs[name] = tuple(combine_uncertainties(op, num_unc[i], other_unc[i],
                 nom1=num.nominal, nom2=other.nominal, rho=_rho) for i in range(2))
 
@@ -808,11 +847,19 @@ class Number(object):
 
     def __eq__(self, other):
         # compare nominal values
-        if not self.is_numpy:
-            return self.nominal == ensure_nominal(other)
-        else:
+        if isinstance(other, Number):
+            other = ensure_nominal(other)
+
+        if self.is_numpy and is_numpy(other):
             # element-wise
-            return np.equal(self.nominal, ensure_nominal(other))
+            try:
+                return np.equal(self.nominal, other)
+            except ValueError:
+                return False
+        elif self.is_numpy or is_numpy(other):
+            return (self.nominal == other).all()
+        else:
+            return self.nominal == other
 
     def __ne__(self, other):
         # opposite of __eq__
@@ -858,7 +905,10 @@ class Number(object):
         return self.add(other, inplace=False)
 
     def __radd__(self, other):
-        return ensure_number(other).add(self, inplace=False)
+        if isinstance(other, DeferredResult):
+            return other.number.add(self, rho=other.correlation, inplace=False)
+        else:
+            return ensure_number(other).add(self, inplace=False)
 
     def __iadd__(self, other):
         return self.add(other, inplace=True)
@@ -867,7 +917,10 @@ class Number(object):
         return self.sub(other, inplace=False)
 
     def __rsub__(self, other):
-        return ensure_number(other).sub(self, inplace=False)
+        if isinstance(other, DeferredResult):
+            return other.number.sub(self, rho=other.correlation, inplace=False)
+        else:
+            return ensure_number(other).sub(self, inplace=False)
 
     def __isub__(self, other):
         return self.sub(other, inplace=True)
@@ -876,7 +929,12 @@ class Number(object):
         return self.mul(other, inplace=False)
 
     def __rmul__(self, other):
-        return ensure_number(other).mul(self, inplace=False)
+        if isinstance(other, Correlation):
+            return self.mul(other, inplace=False)
+        elif isinstance(other, DeferredResult):
+            return other.number.mul(self, rho=other.correlation, inplace=False)
+        else:
+            return ensure_number(other).mul(self, inplace=False)
 
     def __imul__(self, other):
         return self.mul(other, inplace=True)
@@ -885,7 +943,10 @@ class Number(object):
         return self.div(other, inplace=False)
 
     def __rdiv__(self, other):
-        return ensure_number(other).div(self, inplace=False)
+        if isinstance(other, DeferredResult):
+            return other.number.rdiv(self, rho=other.correlation, inplace=False)
+        else:
+            return ensure_number(other).div(self, inplace=False)
 
     def __idiv__(self, other):
         return self.div(other, inplace=True)
@@ -894,7 +955,10 @@ class Number(object):
         return self.div(other, inplace=False)
 
     def __rtruediv__(self, other):
-        return ensure_number(other).div(self, inplace=False)
+        if isinstance(other, DeferredResult):
+            return other.number.div(self, rho=other.correlation, inplace=False)
+        else:
+            return ensure_number(other).div(self, inplace=False)
 
     def __itruediv__(self, other):
         return self.div(other, inplace=True)
@@ -903,7 +967,10 @@ class Number(object):
         return self.pow(other, inplace=False)
 
     def __rpow__(self, other):
-        return ensure_number(other).pow(self, inplace=False)
+        if isinstance(other, DeferredResult):
+            return other.number.rpow(self, rho=other.correlation, inplace=False)
+        else:
+            return ensure_number(other).pow(self, inplace=False)
 
     def __ipow__(self, other):
         return self.pow(other, inplace=True)
@@ -915,6 +982,89 @@ ABS = Number.ABS
 NOMINAL = Number.NOMINAL
 UP = Number.UP
 DOWN = Number.DOWN
+
+
+class Correlation(object):
+    """ Correlation([default], **rhos)
+    Container class describing correlations to be applied to equally named uncertainties when
+    combining two :py:class:`Number` instances through an operator.
+
+    A correlation object is therefore applied to a number by means of multiplication, resulting in a
+    :py:class:`DeferredResult` object which is used subsequently by the actual combination operation
+    with an other number. See :py:class:`DeferredResult` for more examples.
+    """
+
+    def __init__(self, *args, **rhos):
+        super(Correlation, self).__init__()
+
+        # at most one positional argument is accepted
+        if len(args) >= 2:
+            raise Exception("only one default value is accepted, got {} instead".format(args))
+        # at least one argument at all is expected
+        if not args and not rhos:
+            raise Exception("at least one correlation coefficient or a default value is expected")
+
+        # store attributes
+        self.default = float(args[0]) if len(args) == 1 else None
+        self.rhos = rhos
+
+    def __repr__(self):
+        parts = []
+        if self.default is not None:
+            parts.append(str(self.default))
+        parts.extend("{}={}".format(*tpl) for tpl in self.rhos.items())
+        return "<{} '{}' at {}>".format(self.__class__.__name__, ", ".join(parts), hex(id(self)))
+
+    def get(self, name, default=None):
+        """
+        Returns a correlation coefficient rho named *name*. When no coefficient with that name
+        exists and *default* is set, which itself defaults to :py:attr:`default`, this value is
+        returned instead. Otherwise, a *KeyError* is raised.
+        """
+        if default is None:
+            default = self.default
+
+        return self.rhos[name] if default is None else self.rhos.get(name, default)
+
+
+class DeferredResult(object):
+    """
+    Class that wraps a :py:class:`Number` instance *number* and a :py:class:`Correlation` instance
+    *correlation* that is automatically produced as a result of a multiplication between the two.
+    Internally, this is used for the deferred resolution of uncertainty correlations when combined
+    with an other :py:class:`Number`. Example:
+
+    .. code-block:: python
+
+        n = Number(2, 5)
+
+        n * Correlation(1) * n
+        # -> '25.0 +- 20.0' (the default)
+
+        n * Correlation(0) * n
+        # -> '25.00 +- 14.14'
+
+        # note the multiplication n * c, which creates the DeferredResult
+        n**(n * c)
+        # -> '3125.00 +- 11842.54'
+
+    .. py:attribute:: number
+       type: Number
+
+       The wrapped number object.
+
+    .. py:attribute:: correlation
+       type: Correlation
+
+       The wrapped correlation object.
+    """
+
+    def __init__(self, number, correlation):
+        super(DeferredResult, self).__init__()
+
+        # store attributes
+        self.number = number
+        self.correlation = correlation
 
 
 class Operation(object):
@@ -1556,8 +1706,8 @@ def split_value(val):
     else:
         log = np.zeros(val.shape)
         np.log10(np.abs(val), out=log, where=(val != 0))
-        mag = np.floor(log).astype(np.int)
-        sig = val.astype(np.float) / (10.**mag)
+        mag = np.floor(log).astype(int)
+        sig = val.astype(float) / (10.**mag)
 
     return (sig, mag)
 
@@ -1778,7 +1928,7 @@ def round_uncertainty(unc, method="publication"):
         prec, sig, mag = _infer_precision(unc, sig, mag, meth)
         replace_args = (".", "")
     else:
-        prec = np.ones(unc.shape).astype(np.int)
+        prec = np.ones(unc.shape).astype(int)
         for p, u, s, m in np.nditer([prec, unc, sig, mag], op_flags=["readwrite"]):
             p[...], s[...], m[...] = _infer_precision(u, s, m, meth)
         replace_args = (b".", b"")

@@ -7,7 +7,8 @@ scinum provides a simple `Number` class that wraps plain floats or [NumPy](http:
 
 ### Usage
 
-The following examples demonstrate the most common use cases. For more info, see the [API documentation](http://scinum.readthedocs.org/en/latest/?badge=latest) or open the [example.ipynb](https://github.com/riga/scinum/blob/master/example.ipynb) notebook on binder: [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/riga/scinum/master?filepath=example.ipynb)
+The following examples demonstrate the most common use cases.
+For more info, see the [API documentation](http://scinum.readthedocs.org/en/latest/?badge=latest) or open the [example.ipynb](https://github.com/riga/scinum/blob/master/example.ipynb) notebook on binder: [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/riga/scinum/master?filepath=example.ipynb)
 
 
 ###### Number definition
@@ -88,6 +89,108 @@ For situations that require more sophisticated rounding and formatting rules, yo
 - [`sn.infer_si_prefix()`](http://scinum.readthedocs.io/en/latest/#infer-si-prefix)
 
 
+###### Uncertainty propagation
+
+```python
+from scinum import Number
+
+num = Number(5, 1)
+print(num + 2)  # -> '7.0 +- 1.0'
+print(num * 3)  # -> '15.0 +- 3.0'
+
+num2 = Number(2.5, 1.5)
+print(num + num2)  # -> '7.5 +- 2.5'
+print(num * num2)  # -> '12.5 +- 10.0'
+
+# add num2 to num and consider their uncertainties to be fully uncorrelated, i.e. rho = 0
+num.add(num2, rho=0)
+print(num)  # -> '7.5 +- 1.80277563773'
+```
+
+
+###### Correlation handling
+
+When two numbers are combined by means of an operator, the correlation between equally named uncertainties is assumed to be 1.
+The example above shows how to configure this correlation coefficient `rho` when used with explicit operator methods defined on a number, such as `num.add()` or `num.mul()`.
+
+However, it is probably more convenient to use `Correlation` objects:
+
+```python
+from scinum import Number, Correlation
+
+num = Number(2, 5)
+print(num * num)  # -> '4.0 +- 20.0', fully correlated by default
+# same as
+# print(num**2)
+# print(num.pow(2, inplace=False))
+
+print(num * Correlation(0) * num)  # -> '4.0 +- 14.14', no correlation
+# same as
+# print(num.pow(2, rho=0, inplace=False))
+```
+
+The correlation object is combined with a number through multiplication, resulting in a `DeferredResult` object.
+The deferred result is used to resolve the actual uncertainty combination once it is applied to another number instance which happens in a second step.
+Internally, the above example is handled as
+
+```python
+deferred = num * Correlation(0)
+print(deferred * num)
+```
+
+and similarly, adding two numbers without correlation can be expressed as
+
+```python
+(num * Correlation(0)) + num
+```
+
+When combining numbers with multiple, named uncertainties, correlation coefficients can be controlled per uncertainty by passing names to the `Correlation` constructor.
+
+```python
+Correlation(1, sourceA=0)  # zero correlation for sourceA, all others default to 1
+Correlation(sourceA=0)     # zero correlation for sourceA, no default
+```
+
+
+###### Math operations
+
+As a drop-in replacement for the `math` module, scinum provides an object `ops` that contains math operations that are aware of guassian error propagation.
+
+```python
+from scinum import Number, ops
+
+num = ops.log(Number(5, 2))
+print(num)  # -> 1.60943791243 +- 0.4
+
+num = ops.exp(ops.tan(Number(5, 2)))
+print(num)  # -> 0.0340299245972 +- 0.845839754815
+print(num.str("%.2f"))  # -> 0.03 +- 0.85
+```
+
+
+###### Custom operations
+
+There might be situations where a specific operation is not (yet) contained in the `ops` object.
+In this case, you can easily register a new one via:
+
+```python
+from scinum import Number, ops
+
+@ops.register
+def my_op(x):
+    return x * 2 + 1
+
+@my_op.derive
+def my_op(x):
+    return 2
+
+num = ops.my_op(Number(5, 2))
+print(num)  # -> 11.00 (+4.00, -4.00)
+```
+
+Please note that there is no need to register *simple* functions like in the particular example above as most of them are just composite operations whose propagation rules (derivatives) are already known.
+
+
 ###### NumPy arrays
 
 ```python
@@ -110,63 +213,6 @@ print(num)
 ```
 
 
-###### Uncertainty propagation
-
-```python
-from scinum import Number
-
-num = Number(5, 1)
-print(num + 2)  # -> '7.0 +- 1.0'
-print(num * 3)  # -> '15.0 +- 3.0'
-
-num2 = Number(2.5, 1.5)
-print(num + num2)  # -> '7.5 +- 2.5'
-print(num * num2)  # -> '12.5 +- 10.0'
-
-# add num2 to num and consider their uncertainties to be fully uncorrelated, i.e. rho = 0
-num.add(num2, rho=0)
-print(num)  # -> '7.5 +- 1.80277563773'
-```
-
-
-###### Math operations
-
-As a drop-in replacement for the `math` module, scinum provides an object `ops` that contains math operations that are aware of guassian error propagation.
-
-```python
-from scinum import Number, ops
-
-num = ops.log(Number(5, 2))
-print(num)  # -> 1.60943791243 +- 0.4
-
-num = ops.exp(ops.tan(Number(5, 2)))
-print(num)  # -> 0.0340299245972 +- 0.845839754815
-print(num.str("%.2f"))  # -> 0.03 +- 0.85
-```
-
-
-###### Custom operations
-
-There might be situations where a specific operation is not (yet) contained in the `ops` object. In this case, you can easily register a new one via:
-
-```python
-from scinum import Number, ops
-
-@ops.register
-def my_op(x):
-    return x * 2 + 1
-
-@my_op.derive
-def my_op(x):
-    return 2
-
-num = ops.my_op(Number(5, 2))
-print(num)  # -> 11.00 (+4.00, -4.00)
-```
-
-Please note that there is no need to register *simple* functions like in the particular example above as most of them are just composite operations whose propagation rules (derivatives) are already known.
-
-
 ### Installation and dependencies
 
 Via [pip](https://pypi.python.org/pypi/scinum)
@@ -182,7 +228,8 @@ Numpy is an optional dependency.
 
 ### Contributing
 
-If you like to contribute, I'm happy to receive pull requests. Just make sure to add a new test cases and run them via:
+If you like to contribute, I'm happy to receive pull requests.
+Just make sure to add a new test cases and run them via:
 
 ```bash
 > python -m unittest tests
