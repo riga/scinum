@@ -54,6 +54,10 @@ integer_types = (int,)
 if sys.version_info.major < 3:
     integer_types += (long,)  # noqa
 
+correlation_ops = (operator.mul,)
+if sys.version_info.major >= 3:
+    correlation_ops += (operator.matmul,)
+
 
 # metaclass decorator from six package, credits to Benjamin Peterson
 def with_metaclass(meta, *bases):
@@ -749,12 +753,13 @@ class Number(object):
         return self._apply(operator.pow, *args, **kwargs)
 
     def _apply(self, op, other, rho=1., inplace=True):
-        # when other is a correlation object and op is mul, return a deferred result that is
-        # resolved in the next operation
+        # when other is a correlation object and op is (mat)mul, return a deferred result that is to
+        # be resolved in the next operation
         if isinstance(other, Correlation):
-            if op != operator.mul:
-                raise ValueError("cannot apply correlation object {} via operator {}, only mul is "
-                    "supported".format(other, op.__name__))
+            if op not in correlation_ops:
+                names = ",".join(o.__name__ for o in correlation_ops)
+                raise ValueError("cannot apply correlation object {} via operator {}, supported "
+                    "operators are: {}".format(other, op.__name__, names))
             return DeferredResult(self, other)
 
         # when other is a deferred result, use its number of correlation
@@ -936,6 +941,13 @@ class Number(object):
         else:
             return ensure_number(other).mul(self, inplace=False)
 
+    def __matmul__(self, other):
+        # only supported for correlations
+        if not isinstance(other, Correlation):
+            raise NotImplementedError
+
+        return self.mul(other, inplace=False)
+
     def __imul__(self, other):
         return self.mul(other, inplace=True)
 
@@ -989,9 +1001,14 @@ class Correlation(object):
     Container class describing correlations to be applied to equally named uncertainties when
     combining two :py:class:`Number` instances through an operator.
 
-    A correlation object is therefore applied to a number by means of multiplication, resulting in a
-    :py:class:`DeferredResult` object which is used subsequently by the actual combination operation
-    with an other number. See :py:class:`DeferredResult` for more examples.
+    A correlation object is therefore applied to a number by means of multiplication or matrix
+    multiplication (i.e. ``*`` or ``@``), resulting in a :py:class:`DeferredResult` object which is
+    used subsequently by the actual combination operation with an other number. See
+    :py:class:`DeferredResult` for more examples.
+
+    Correlation coefficients can be defined per named source of uncertainty via *rhos*. When a
+    coefficient is retrieved (by :py:meth:`get`) with a name that was not defined before, a
+    *default* value is used, which itself defaults to one.
     """
 
     def __init__(self, *args, **rhos):
@@ -1000,19 +1017,13 @@ class Correlation(object):
         # at most one positional argument is accepted
         if len(args) >= 2:
             raise Exception("only one default value is accepted, got {} instead".format(args))
-        # at least one argument at all is expected
-        if not args and not rhos:
-            raise Exception("at least one correlation coefficient or a default value is expected")
 
         # store attributes
-        self.default = float(args[0]) if len(args) == 1 else None
+        self.default = float(args[0]) if len(args) == 1 else 1.
         self.rhos = rhos
 
     def __repr__(self):
-        parts = []
-        if self.default is not None:
-            parts.append(str(self.default))
-        parts.extend("{}={}".format(*tpl) for tpl in self.rhos.items())
+        parts = [str(self.default)] + ["{}={}".format(*tpl) for tpl in self.rhos.items()]
         return "<{} '{}' at {}>".format(self.__class__.__name__, ", ".join(parts), hex(id(self)))
 
     def get(self, name, default=None):
@@ -1024,15 +1035,15 @@ class Correlation(object):
         if default is None:
             default = self.default
 
-        return self.rhos[name] if default is None else self.rhos.get(name, default)
+        return self.rhos.get(name, default)
 
 
 class DeferredResult(object):
     """
     Class that wraps a :py:class:`Number` instance *number* and a :py:class:`Correlation` instance
-    *correlation* that is automatically produced as a result of a multiplication between the two.
-    Internally, this is used for the deferred resolution of uncertainty correlations when combined
-    with an other :py:class:`Number`. Example:
+    *correlation* that is automatically produced as a result of a multiplication or matrix
+    multiplication between the two. Internally, this is used for the deferred resolution of
+    uncertainty correlations when combined with an other :py:class:`Number`. Example:
 
     .. code-block:: python
 

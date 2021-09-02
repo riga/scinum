@@ -245,24 +245,24 @@ class TestCase(unittest.TestCase):
         num = self.num ** 2
         self.assertAlmostEqual(num(), 6.25)
         self.assertAlmostEqual(num.u("A", UP),
-                2 * self.num() * self.num.get_uncertainty("A", UP))
+            2 * self.num() * self.num.get_uncertainty("A", UP))
         self.assertAlmostEqual(num.u("B", UP),
-                2 * self.num() * self.num.get_uncertainty("B", UP))
+            2 * self.num() * self.num.get_uncertainty("B", UP))
         self.assertAlmostEqual(num.u("C", UP),
-                2 * self.num() * self.num.get_uncertainty("C", UP))
+            2 * self.num() * self.num.get_uncertainty("C", UP))
         self.assertAlmostEqual(num.u("C", DOWN),
-                2 * self.num() * self.num.get_uncertainty("C", DOWN))
+            2 * self.num() * self.num.get_uncertainty("C", DOWN))
 
         num = 2. ** self.num
         self.assertAlmostEqual(num(), 2 ** 2.5)
         self.assertAlmostEqual(num.u("A", UP),
-                math.log(2.) * num() * self.num.get_uncertainty("A", UP))
+            math.log(2.) * num() * self.num.get_uncertainty("A", UP))
         self.assertAlmostEqual(num.u("B", UP),
-                math.log(2) * num() * self.num.get_uncertainty("B", UP))
+            math.log(2) * num() * self.num.get_uncertainty("B", UP))
         self.assertAlmostEqual(num.u("C", UP),
-                math.log(2) * num() * self.num.get_uncertainty("C", UP))
+            math.log(2) * num() * self.num.get_uncertainty("C", UP))
         self.assertAlmostEqual(num.u("C", DOWN),
-                math.log(2) * num() * self.num.get_uncertainty("C", DOWN))
+            math.log(2) * num() * self.num.get_uncertainty("C", DOWN))
 
         num = self.num * 0
         self.assertEqual(num(), 0)
@@ -352,7 +352,7 @@ class TestCase(unittest.TestCase):
         num = ops.pow(self.num, 2)
         self.assertEqual(num(), self.num() ** 2.)
         self.assertEqual(num.u("A", UP),
-                2. * num() * self.num(UP, "A", diff=True, factor=True))
+            2. * num() * self.num(UP, "A", diff=True, factor=True))
 
     def test_op_exp(self):
         num = ops.exp(self.num)
@@ -367,25 +367,25 @@ class TestCase(unittest.TestCase):
         num = ops.log(self.num, 2.)
         self.assertEqual(num(), math.log(self.num(), 2))
         self.assertAlmostEqual(num.u("A", UP),
-                self.num(UP, "A", diff=True, factor=True) / math.log(2))
+            self.num(UP, "A", diff=True, factor=True) / math.log(2))
 
     def test_op_sin(self):
         num = ops.sin(self.num)
         self.assertEqual(num(), math.sin(self.num()))
         self.assertAlmostEqual(num.u("A", UP),
-                self.num.u("A", UP) * abs(math.cos(self.num())))
+            self.num.u("A", UP) * abs(math.cos(self.num())))
 
     def test_op_cos(self):
         num = ops.cos(self.num)
         self.assertEqual(num(), math.cos(self.num()))
         self.assertAlmostEqual(num.u("A", UP),
-                self.num.u("A", UP) * abs(math.sin(self.num())))
+            self.num.u("A", UP) * abs(math.sin(self.num())))
 
     def test_op_tan(self):
         num = ops.tan(self.num)
         self.assertEqual(num(), math.tan(self.num()))
         self.assertAlmostEqual(num.u("A", UP),
-                self.num.u("A", UP) / abs(math.cos(self.num())) ** 2)
+            self.num.u("A", UP) / abs(math.cos(self.num())) ** 2)
 
     def test_split_value(self):
         self.assertEqual(split_value(1), (1., 0))
@@ -497,13 +497,6 @@ class TestCase(unittest.TestCase):
         self.assertEqual(c.get("bar"), 1.5)
         self.assertEqual(c.get("bar", 0.75), 0.75)
 
-        c = Correlation(foo=0.5)
-        with self.assertRaises(KeyError):
-            c.get("bar")
-
-        with self.assertRaises(Exception):
-            Correlation()
-
         with self.assertRaises(Exception):
             Correlation(1, 1)
 
@@ -518,6 +511,9 @@ class TestCase(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             self.num + c
+
+        if sys.version_info.major >= 3:
+            eval("self.num @ c")
 
     def test_deferred_resolution(self):
         n = (self.num * Correlation(A=1)) + self.num
