@@ -1902,7 +1902,7 @@ def round_uncertainty(unc, method="publication"):
 
     - ``"pdg"``: Rounding rules as defined by the `PDG
       <http://pdg.lbl.gov/2011/reviews/rpp2011-rev-rpp-intro.pdf#page=13>`_.
-    - ``"publication"``, ``"pub``: Like ``"pdg"`` with an extra significant digit for results that
+    - ``"publication"``, ``"pub"``: Like ``"pdg"`` with an extra significant digit for results that
       need to be combined later.
     - ``"onedigit"``, ``"one"``: Forces one single significant digit. This is useful when there are
       multiple uncertainties that vary by more than a factor 10 among themselves.
