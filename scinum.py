@@ -45,6 +45,13 @@ except ImportError:
     _uncs = None
     HAS_UNCERTAINTIES = False
 
+try:
+    import yaml
+    HAS_YAML = True
+except ImportError:
+    yaml = None
+    HAS_YAML = False
+
 
 # version related adjustments
 string_types = (str,)
@@ -2230,6 +2237,88 @@ def infer_si_prefix(f):
     else:
         mag = 3 * int(math.log10(abs(float(f))) // 3)
         return si_refixes[mag], mag
+
+
+def create_hep_data_representer(method=None, force_asymmetric=False, force_float=False, **kwargs):
+    """
+    Creates a PyYAML representer function that encodes a :py:class:`Number` as a data structure that
+    is compatible to the `HEPData
+    <https://hepdata-submission.readthedocs.io/en/latest/data_yaml.html>`_ format for values in data
+    files.
+
+    For documentation of the rounding *method*, see :py:func:`round_uncertainty`. When *None*, the
+    *default_format* of the number instance is used in case it is not a python format string.
+    Otherwise ``"pdg+1"`` is assumed. When the up and down of an uncertainty are identical after
+    rounding, they are encoded as symmetric unless *force_asymmetric* is *True*. Also, when all
+    decimal digits are removed during rounding, the final value is encoded as an integer unless
+    *force_float* is *True*.
+
+    All remaining *kwargs* are forwarded to :py:func:`match_precision` which is performing the
+    rounding internally.
+    """
+    if not HAS_YAML:
+        raise RuntimeError("create_hep_data_representer requires PyYAML (https://pyyaml.org) to be "
+            "installed on your system")
+
+    # yaml node factories
+    y_map = lambda value: yaml.MappingNode(tag="tag:yaml.org,2002:map", value=value)
+    y_seq = lambda value: yaml.SequenceNode(tag="tag:yaml.org,2002:seq", value=value)
+    y_str = lambda value: yaml.ScalarNode(tag="tag:yaml.org,2002:str", value=str(value))
+    y_int = lambda value: yaml.ScalarNode(tag="tag:yaml.org,2002:int", value=str(value))
+    y_float = lambda value: yaml.ScalarNode(tag="tag:yaml.org,2002:float", value=str(value))
+    y_int_or_float = lambda value: y_float(value) if "." in str(value) else y_int(value)
+
+    def representer(dumper, num):
+        """
+        Produced node structure:
+          value: float
+          errors:
+            - symerror: float
+              label: str
+            - asymerror:
+                plus: float
+                minus: float
+              label: str
+        """
+        if num.is_numpy:
+            raise NotImplementedError("create_hep_data_representer does not support NumPy arrays")
+
+        # apply the rounding method
+        nom = num.nominal
+        uncs = num.uncertainties.values()
+        _method = method or num.default_format or "pdg+1"
+        nom, uncs, mag = round_value(nom, uncs, method=_method, **kwargs)
+        def fmt(x, sign=1.0):
+            return match_precision(sign * float(x) * 10.0**mag, 10.0**mag, force_float=force_float,
+                **kwargs)
+
+        # build error nodes
+        error_nodes = []
+        for name, (up, down) in zip(num.uncertainties, uncs):
+            if up == down and not force_asymmetric:
+                node = y_map([
+                    (y_str("label"), y_str(name)),
+                    (y_str("symerror"), y_int_or_float(fmt(up))),
+                ])
+            else:
+                node = y_map([
+                    (y_str("label"), y_str(name)),
+                    (y_str("asymerror"), y_map([
+                        (y_str("plus"), y_int_or_float(fmt(up))),
+                        (y_str("minus"), y_int_or_float(fmt(down, -1.0))),
+                    ])),
+                ])
+            error_nodes.append(node)
+
+        # build the value node
+        value_node_items = [(y_str("value"), y_int_or_float(fmt(nom)))]
+        if error_nodes:
+            value_node_items.append((y_str("errors"), y_seq(error_nodes)))
+        value_node = y_map(value_node_items)
+
+        return value_node
+
+    return representer
 
 
 #: Dictionaly containing formatting styles for ``"plain"``, ``"latex"`` and ``"root"`` styles which
