@@ -66,6 +66,17 @@ class TestCase(unittest.TestCase):
         self.assertEqual(len(unc), 2)
         self.assertEqual(unc, (5., 5.))
 
+        num = Number(42, {"foo": 5})
+
+        self.assertEqual(num.get_uncertainty("foo"), (5, 5))
+        self.assertEqual(num.get_uncertainty("NOT_EXISTING", default=(1, 2)), (1, 2))
+
+        with self.assertRaises(KeyError):
+            num.get_uncertainty("NOT_EXISTING")
+
+        with self.assertRaises(ValueError):
+            num.get_uncertainty("foo", direction="UNKNOWN")
+
     @if_numpy
     def test_constructor_numpy(self):
         num = Number(np.array([5, 27, 42]), 5)
@@ -137,11 +148,23 @@ class TestCase(unittest.TestCase):
         self.assertEqual(len(num.uncertainties), 1)
         self.assertEqual(num.u(direction=UP).shape, (3,))
 
-    def test_strings(self):
+    def test_string_formats(self):
         self.assertEqual(len(self.num.str()), 91)
         self.assertEqual(len(self.num.str("%.3f")), 112)
-
+        self.assertEqual(len(self.num.str(lambda n: "%s" % n)), 91)
+        self.assertEqual(len(self.num.str(lambda n: "X%s" % n)), 103)
         self.assertEqual(len(self.num.repr().split(" ", 3)[-1]), 94)
+        self.assertEqual(len(self.num.str(2)), 100)
+        self.assertEqual(len(self.num.str(3)), 112)
+        self.assertEqual(len(self.num.str(4)), 124)
+        self.assertEqual(len(self.num.str(-1)), 88)
+        self.assertEqual(len(self.num.str("pub")), 112)
+        self.assertEqual(len(self.num.str("publication")), 112)
+        self.assertEqual(len(self.num.str("pdg")), 100)
+        self.assertEqual(len(self.num.str("pdg+1")), 112)
+
+        with self.assertRaises(ValueError):
+            self.num.str("foo")
 
         num = self.num.copy()
         num.uncertainties = {}
@@ -149,6 +172,25 @@ class TestCase(unittest.TestCase):
         self.assertEqual(len(num.str()), 22)
         self.assertTrue(num.str().endswith(" (no uncertainties)"))
         self.assertEqual(len(num.repr().split(" ", 3)[-1]), 25)
+
+    def test_string_flags(self):
+        n = Number(8848, {"stat": (30, 20)})
+        n.set_uncertainty("syst", (Number.REL, 0.5))
+
+        self.assertEqual(n.str(), "8848.0 +30.0-20.0 (stat) +- 4424.0 (syst)")
+        self.assertEqual(n.str(scientific=True), "8.848 +0.03-0.02 (stat) +- 4.424 (syst) x 1E3")
+        self.assertEqual(n.str(scientific=True, unit="m"),
+            "8.848 +0.03-0.02 (stat) +- 4.424 (syst) x 1E3 m")
+        self.assertEqual(n.str(si=True), "8.848 +0.03-0.02 (stat) +- 4.424 (syst) k")
+        self.assertEqual(n.str(si=True, unit="m"), "8.848 +0.03-0.02 (stat) +- 4.424 (syst) km")
+        self.assertEqual(n.str("%.2f", si=True), "8.85 +0.03-0.02 (stat) +- 4.42 (syst) k")
+        self.assertEqual(n.str(-2, si=True), "8.85 +0.03-0.02 (stat) +- 4.42 (syst) k")
+
+        self.assertEqual(n.str("%.3f", si=True), "8.848 +0.030-0.020 (stat) +- 4.424 (syst) k")
+        self.assertEqual(n.str(-3, si=False), "8848.000 +30.000-20.000 (stat) +- 4424.000 (syst)")
+        self.assertEqual(n.str(-3, si=True), "8.848 +0.030-0.020 (stat) +- 4.424 (syst) k")
+        self.assertEqual(n.str(3, si=False), "8848.0 +30.0-20.0 (stat) +- 4424.0 (syst)")
+        self.assertEqual(n.str("pdg", si=False), "8848 +30-20 (stat) +- 4000 (syst)")
 
     def test_uncertainty_parsing(self):
         uncs = {}
@@ -402,13 +444,20 @@ class TestCase(unittest.TestCase):
     def test_match_precision(self):
         self.assertEqual(match_precision(1.234, ".1"), "1.2")
         self.assertEqual(match_precision(1.234, "1."), "1")
-        self.assertEqual(match_precision(1.234, ".1", decimal.ROUND_UP), "1.3")
+        self.assertEqual(match_precision(1.234, ".1", rounding=decimal.ROUND_UP), "1.3")
+        self.assertEqual(match_precision(1.0, "1"), "1")
+        self.assertEqual(match_precision(1.0, "1.0"), "1.0")
+        self.assertEqual(match_precision(1.0, 1.2), "1")
+        self.assertEqual(match_precision(1.0, 1.2, force_float=True), "1.0")
 
     @if_numpy
     def test_match_precision_numpy(self):
         a = np.array([1., 0.123, -42.5, 0.])
-        self.assertEqual(tuple(match_precision(a, "1.")), (b"1", b"0", b"-42", b"0"))
+        self.assertEqual(tuple(match_precision(a, "1.")), (b"1", b"0", b"-43", b"0"))
         self.assertEqual(tuple(match_precision(a, ".1")), (b"1.0", b"0.1", b"-42.5", b"0.0"))
+        self.assertEqual(tuple(match_precision(a, 1.2)), (b"1", b"0", b"-43", b"0"))
+        self.assertEqual(tuple(match_precision(a, 1)), (b"1", b"0", b"-43", b"0"))
+        self.assertEqual(tuple(match_precision(a, 0.01)), (b"1.00", b"0.12", b"-42.50", b"0.00"))
 
     def test_calculate_uncertainty(self):
         self.assertEqual(calculate_uncertainty([(3, 0.5), (4, 0.5)]), 2.5)
@@ -417,68 +466,148 @@ class TestCase(unittest.TestCase):
         self.assertEqual(calculate_uncertainty([(3, 0.5), (4, 0.5)], rho={(1, 2): 1}), 2.5)
 
     def test_round_uncertainty(self):
-        self.assertEqual(round_uncertainty(0.352, "pdg"), ("35", -2))
-        self.assertEqual(round_uncertainty(0.352, "pub"), ("352", -3))
-        self.assertEqual(round_uncertainty(0.352, "one"), ("4", -1))
+        self.assertEqual(round_uncertainty(0.352), ("4", -1, 1))
+        self.assertEqual(round_uncertainty(0.352, 1), ("4", -1, 1))
+        self.assertEqual(round_uncertainty(0.352, 2), ("35", -2, 2))
+        self.assertEqual(round_uncertainty(0.352, "pdg"), ("35", -2, 2))
+        self.assertEqual(round_uncertainty(0.352, "pdg+1"), ("352", -3, 3))
+        self.assertEqual(round_uncertainty(0.352, "publication"), ("352", -3, 3))
+        self.assertEqual(round_uncertainty(0.352, "pub"), ("352", -3, 3))
 
-        self.assertEqual(round_uncertainty(0.835, "pdg"), ("8", -1))
-        self.assertEqual(round_uncertainty(0.835, "pub"), ("84", -2))
-        self.assertEqual(round_uncertainty(0.835, "one"), ("8", -1))
+        self.assertEqual(round_uncertainty(0.835), ("8", -1, 1))
+        self.assertEqual(round_uncertainty(0.835, 1), ("8", -1, 1))
+        self.assertEqual(round_uncertainty(0.835, 2), ("84", -2, 2))
+        self.assertEqual(round_uncertainty(0.835, "pdg"), ("8", -1, 1))
+        self.assertEqual(round_uncertainty(0.835, "pdg+1"), ("84", -2, 2))
+        self.assertEqual(round_uncertainty(0.835, "publication"), ("84", -2, 2))
+        self.assertEqual(round_uncertainty(0.835, "pub"), ("84", -2, 2))
 
-        self.assertEqual(round_uncertainty(0.962, "pdg"), ("10", -1))
-        self.assertEqual(round_uncertainty(0.962, "pub"), ("962", -3))
-        self.assertEqual(round_uncertainty(0.962, "one"), ("10", -1))
+        self.assertEqual(round_uncertainty(0.962), ("1", 0, 1))
+        self.assertEqual(round_uncertainty(0.962, 1), ("1", 0, 1))
+        self.assertEqual(round_uncertainty(0.962, 2), ("96", -2, 2))
+        self.assertEqual(round_uncertainty(0.962, "pdg"), ("10", -1, 2))
+        self.assertEqual(round_uncertainty(0.962, "pdg+1"), ("100", -2, 3))
+        self.assertEqual(round_uncertainty(0.962, "publication"), ("96", -2, 2))
+        self.assertEqual(round_uncertainty(0.962, "pub"), ("96", -2, 2))
 
-        self.assertEqual(round_uncertainty(0.532, "pdg"), ("5", -1))
-        self.assertEqual(round_uncertainty(0.532, "pub"), ("53", -2))
-        self.assertEqual(round_uncertainty(0.532, "one"), ("5", -1))
+        # enforce precision after rounding
+        self.assertEqual(round_uncertainty(0.352, 1, 1), ("4", -1, 1))
+        self.assertEqual(round_uncertainty(0.352, 1, 2), ("40", -2, 2))
+        self.assertEqual(round_uncertainty(0.352, 2, 1), ("4", -1, 1))
+        self.assertEqual(round_uncertainty(0.352, 2, 2), ("35", -2, 2))
+        self.assertEqual(round_uncertainty(0.962, "pdg", 2), ("10", -1, 2))
+        self.assertEqual(round_uncertainty(0.962, "pdg", 3), ("100", -2, 3))
+        self.assertEqual(round_uncertainty(0.962, "pdg+1", 3), ("100", -2, 3))
+        self.assertEqual(round_uncertainty(0.962, "pdg+1", 4), ("1000", -3, 4))
+        self.assertEqual(round_uncertainty(0.962, "publication", 2), ("96", -2, 2))
+        self.assertEqual(round_uncertainty(0.962, "publication", 3), ("960", -3, 3))
+        self.assertEqual(round_uncertainty(0.962, "pub", 2), ("96", -2, 2))
+        self.assertEqual(round_uncertainty(0.962, "pub", 3), ("960", -3, 3))
+        self.assertEqual(round_uncertainty(962, "pub", 2), ("96", 1, 2))
+        self.assertEqual(round_uncertainty(962, "pub", 3), ("960", 0, 3))
 
-        self.assertEqual(round_uncertainty(0.895, "pdg"), ("9", -1))
-        self.assertEqual(round_uncertainty(0.895, "pub"), ("90", -2))
-        self.assertEqual(round_uncertainty(0.895, "one"), ("9", -1))
+        with self.assertRaises(ValueError):
+            round_uncertainty(0.962, "foo")
+        with self.assertRaises(ValueError):
+            round_uncertainty(0.962, -1)
 
     @if_numpy
     def test_round_uncertainty_numpy(self):
-        digits, mag = round_uncertainty(np.array([0.123, 0.456, 0.987]))
-        self.assertEqual(tuple(digits), (b"123", b"46", b"987"))
-        self.assertEqual(tuple(mag), (-3, -2, -3))
+        a = np.array([0.123, 0.456, 0.987])
+
+        digits, mag, prec = round_uncertainty(a)
+        self.assertEqual(tuple(digits), (b"1", b"5", b"1"))
+        self.assertEqual(tuple(mag), (-1, -1, 0))
+
+        digits, mag, prec = round_uncertainty(a, 1)
+        self.assertEqual(tuple(digits), (b"1", b"5", b"1"))
+        self.assertEqual(tuple(mag), (-1, -1, 0))
+
+        digits, mag, prec = round_uncertainty(a, 2)
+        self.assertEqual(tuple(digits), (b"12", b"46", b"99"))
+        self.assertEqual(tuple(mag), (-2, -2, -2))
+
+        digits, mag, prec = round_uncertainty(a, "pub")
+        self.assertEqual(tuple(digits), (b"123", b"46", b"99"))
+        self.assertEqual(tuple(mag), (-3, -2, -2))
+
+        digits, mag, prec = round_uncertainty(a, "publication")
+        self.assertEqual(tuple(digits), (b"123", b"46", b"99"))
+        self.assertEqual(tuple(mag), (-3, -2, -2))
+
+        digits, mag, prec = round_uncertainty(a, "pdg")
+        self.assertEqual(tuple(digits), (b"12", b"5", b"10"))
+        self.assertEqual(tuple(mag), (-2, -1, -1))
+
+        digits, mag, prec = round_uncertainty(a, "pdg+1")
+        self.assertEqual(tuple(digits), (b"123", b"46", b"100"))
+        self.assertEqual(tuple(mag), (-3, -2, -2))
 
     def test_round_value(self):
-        val_str, unc_strs, mag = round_value(1.23, 0.456)
-        self.assertEqual(val_str, "123")
-        self.assertEqual(tuple(unc_strs), ("46",))
-        self.assertEqual(mag, -2)
+        self.assertEqual(round_value(1.23, 0.456), ("1", "0", 0))
+        self.assertEqual(round_value(1.23, 0.456, 0), ("1", "0", 0))
+        self.assertEqual(round_value(1.23, 0.456, 1), ("12", "5", -1))
+        self.assertEqual(round_value(1.23, 0.456, 2), ("123", "46", -2))
+        self.assertEqual(round_value(1.23, 0.456, -1), ("12", "5", -1))
+        self.assertEqual(round_value(1.23, 0.456, -2), ("123", "46", -2))
+        self.assertEqual(round_value(1.23, 0.456, "pub"), ("123", "46", -2))
+        self.assertEqual(round_value(1.23, 0.456, "publication"), ("123", "46", -2))
+        self.assertEqual(round_value(1.23, 0.456, "pdg"), ("12", "5", -1))
+        self.assertEqual(round_value(1.23, 0.456, "pdg+1"), ("123", "46", -2))
+
+        self.assertEqual(round_value(1.23), ("1", None, 0))
+        self.assertEqual(round_value(1.23, method=0), ("1", None, 0))
+        self.assertEqual(round_value(1.23, method=1), ("1", None, 0))
+        self.assertEqual(round_value(1.23, method=2), ("12", None, -1))
+        self.assertEqual(round_value(1.23, method=-1), ("12", None, -1))
+        self.assertEqual(round_value(1.23, method=-2), ("123", None, -2))
+        with self.assertRaises(ValueError):
+            round_value(1.23, method="pub"), ("123", "46", -2)
+        with self.assertRaises(ValueError):
+            round_value(1.23, method="publication"), ("123", "46", -2)
+        with self.assertRaises(ValueError):
+            round_value(1.23, method="pdg"), ("12", "5", -1)
+        with self.assertRaises(ValueError):
+            round_value(1.23, method="pdg+1"), ("123", "46", -2)
 
         num = Number(1.23, 0.456)
-        val_str, unc_strs, mag = round_value(num)
+        val_str, unc_strs, mag = round_value(num, method=-2)
         self.assertEqual(val_str, "123")
-        self.assertEqual(tuple(unc_strs), ("46", "46"))
+        self.assertEqual(unc_strs[0], ("46", "46"))
         self.assertEqual(mag, -2)
 
-        with self.assertRaises(TypeError):
-            round_value(1.23)
-
     def test_round_value_list(self):
-        val_str, unc_strs, mag = round_value(1.23, [0.45678, 0.078, 0.998])
+        val_str, unc_strs, mag = round_value(1.23, [0.333, 0.45678, 0.078, 0.951], "pub")
         self.assertEqual(val_str, "1230")
-        self.assertEqual(tuple(unc_strs[0]), ("457", "78", "998"))
+        self.assertEqual(tuple(unc_strs), ("333", "460", "78", "950"))
         self.assertEqual(mag, -3)
+
+        val_str, unc_strs, mag = round_value(1.23, [0.333, 0.45678, 0.078, 0.951], "pdg")
+        self.assertEqual(val_str, "123")
+        self.assertEqual(tuple(unc_strs), ("33", "50", "8", "100"))
+        self.assertEqual(mag, -2)
+
+        val_str, unc_strs, mag = round_value(1.23, [0.333, 0.45678, 0.078, 0.951], "pdg",
+            align_precision=False)
+        self.assertEqual(val_str, "123")
+        self.assertEqual(tuple(unc_strs), ("33", "46", "8", "95"))
+        self.assertEqual(mag, -2)
 
     @if_numpy
     def test_round_value_numpy(self):
         val_str, unc_strs, mag = round_value(np.array([1.23, 4.56, 10]),
-            np.array([0.45678, 0.078, 0.998]))
-        self.assertEqual(tuple(val_str), (b"1230", b"4560", b"10000"))
-        self.assertEqual(tuple(unc_strs[0]), (b"457", b"78", b"998"))
-        self.assertEqual(mag, -3)
+            np.array([0.45678, 0.078, 0.998]), "pub")
+        self.assertEqual(tuple(val_str), (b"123", b"4560", b"100"))
+        self.assertEqual(tuple(unc_strs), (b"46", b"78", b"10"))
+        self.assertEqual(tuple(mag), (-2, -3, -1))
 
-        val_str, unc_strs, mag = round_value(np.array([1.23, 4.56, 10]), 1)
+        val_str, unc_strs, mag = round_value(np.array([1.23, 4.56, 10]), 1, "pub")
         self.assertEqual(tuple(val_str), (b"123", b"456", b"1000"))
-        self.assertEqual(tuple(unc_strs[0]), (b"100", b"100", b"100"))
-        self.assertEqual(mag, -2)
+        self.assertEqual(tuple(unc_strs), (b"100", b"100", b"100"))
+        self.assertTrue(np.all(mag == -2))
 
-        with self.assertRaises(TypeError):
-            round_value(np.array([1.23, 4.56, 10]))
+        with self.assertRaises(ValueError):
+            round_value(np.array([1.23, 4.56, 10]), method="pub")
 
     def test_infer_si_prefix(self):
         self.assertEqual(infer_si_prefix(0), ("", 0))
@@ -496,6 +625,8 @@ class TestCase(unittest.TestCase):
         self.assertEqual(c.get("foo"), 0.5)
         self.assertEqual(c.get("bar"), 1.5)
         self.assertEqual(c.get("bar", 0.75), 0.75)
+
+        self.assertEqual(Correlation().default, 1)
 
         with self.assertRaises(Exception):
             Correlation(1, 1)
