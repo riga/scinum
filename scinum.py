@@ -1972,7 +1972,7 @@ def round_uncertainty(unc, method=1, precision=None, **kwargs):
     - ``"pdg"``: Rounding rules as defined by the `PDG
       <https://pdg.lbl.gov/2021/reviews/rpp2021-rev-rpp-intro.pdf#page=18>`_.
     - ``"pdg+1"``: Same rules as for ``"pdg"`` with an additional significant digit.
-    - ``"publication"``, ``"pub``: Same rules as for``"pdg+1"`` but without the rounding of the
+    - ``"publication"``, ``"pub"``: Same rules as for``"pdg+1"`` but without the rounding of the
       first three significant digits above 949 to 1000.
     - positive integer: Enforces a fixed number of significant digits.
 
