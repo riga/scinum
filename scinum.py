@@ -28,7 +28,7 @@ import functools
 import operator
 import types
 import decimal
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
 
 # optional imports
 try:
@@ -323,7 +323,7 @@ class Number(object):
 
         # wrapped values
         self._nominal = None
-        self._uncertainties = {}
+        self._uncertainties = OrderedDict()
 
         # numpy settings
         self.dtype = np.float32 if HAS_NUMPY else None
@@ -386,7 +386,7 @@ class Number(object):
             except:
                 uncertainties = {self.DEFAULT: uncertainties}
 
-        _uncertainties = {}
+        _uncertainties = OrderedDict()
         for name, val in uncertainties.items():
             # check the name
             if not isinstance(name, string_types):
@@ -483,7 +483,7 @@ class Number(object):
         Removes all uncertainties and sets the nominal value to zero (float). When *nominal* and
         *uncertainties* are given, these new values are set on this instance.
         """
-        self.uncertainties = {}
+        self.uncertainties.clear()
         self.nominal = 0.0
 
         if nominal is not None:

@@ -174,7 +174,8 @@ class TestCase(unittest.TestCase):
         self.assertEqual(len(num.repr().split(" ", 3)[-1]), 25)
 
     def test_string_flags(self):
-        n = Number(8848, {"stat": (30, 20), "syst": (Number.REL, 0.5)})
+        n = Number(8848, {"stat": (30, 20)})
+        n.set_uncertainty("syst", (Number.REL, 0.5))
 
         self.assertEqual(n.str(), "8848.0 +30.0-20.0 (stat) +- 4424.0 (syst)")
         self.assertEqual(n.str(scientific=True), "8.848 +0.03-0.02 (stat) +- 4.424 (syst) x 1E3")
