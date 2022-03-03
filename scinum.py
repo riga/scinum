@@ -8,7 +8,7 @@ support.
 
 __author__ = "Marcel Rieger"
 __email__ = "python-scinum@googlegroups.com"
-__copyright__ = "Copyright 2017-2021, Marcel Rieger"
+__copyright__ = "Copyright 2017-2022, Marcel Rieger"
 __credits__ = ["Marcel Rieger"]
 __contact__ = "https://github.com/riga/scinum"
 __license__ = "BSD-3-Clause"
@@ -23,6 +23,7 @@ __all__ = [
 
 import sys
 import math
+import re
 import functools
 import operator
 import types
@@ -444,7 +445,9 @@ class Number(object):
         if direction not in (None, self.UP, self.DOWN):
             raise ValueError("unknown direction: {}".format(direction))
 
-        if name not in self.uncertainties and default is not None:
+        if name not in self.uncertainties:
+            if default is None:
+                raise KeyError("no uncertainty '{}' in {!r}".format(name, self))
             return default
 
         unc = self.uncertainties[name]
@@ -474,7 +477,7 @@ class Number(object):
         *uncertainties* are given, these new values are set on this instance.
         """
         self.uncertainties = {}
-        self.nominal = 0.
+        self.nominal = 0.0
 
         if nominal is not None:
             self.nominal = nominal
@@ -538,36 +541,32 @@ class Number(object):
             if styles:
                 d.update(styles)
 
-            # scientific or SI notation?
+            # scientific or SI notation
             prefix = ""
             transform = lambda x: x
             if scientific or si:
                 if scientific:
-                    mag = 0 if self.nominal == 0 else int(math.floor(math.log10(abs(self.nominal))))
+                    mag = split_value(self.nominal)[1]
                 else:
                     prefix, mag = infer_si_prefix(self.nominal)
-                transform = lambda x: x * 10.**(-mag)
+                transform = lambda x: x * 10.0**(-mag)
 
             # gather and transform values
             nominal = transform(self.nominal)
-            names, ups, downs = [], [], []
-            for name, (up, down) in self.uncertainties.items():
-                names.append(name)
-                ups.append(transform(up))
-                downs.append(transform(down))
+            uncs = [tuple(map(transform, unc)) for unc in self.uncertainties.values()]
+            names = list(self.uncertainties)
 
-            # special formats implemented by round_value
-            if format in ("pub", "publication", "pdg", "one", "onedigit"):
-                # complain when no uncertainties exist
-                if not ups:
-                    raise Exception("cannot apply format '{}' when no uncertainties exist".format(
-                        format))
-                nominal, (ups, downs), _mag = round_value(self.nominal, ups, downs, method=format)
-                fmt = lambda x: match_precision(float(x) * 10.**_mag, 10.**_mag)
-
-            # string formatting
-            elif not callable(format):
+            # prepare formatting
+            if callable(format):
+                fmt = format
+            elif isinstance(format, string_types) and "%" in format:
+                # string formatting
                 fmt = lambda x: format % x
+            else:
+                # special formatting implemented by round_value
+                nominal, uncs, _mag = round_value(nominal, uncs, method=format, **kwargs)
+                fmt = lambda x, **kwargs: match_precision(float(x) * 10.0**_mag, 10.0**_mag,
+                    **kwargs)
 
             # helper to build the ending consisting of scientific notation or SI prefix, and unit
             def ending():
@@ -594,7 +593,7 @@ class Number(object):
                 if len(names) == 1 and names[0] == self.DEFAULT:
                     labels = False
 
-                for i, (name, up, down) in enumerate(zip(names, ups, downs)):
+                for i, (name, (up, down)) in enumerate(zip(names, uncs)):
                     up = str(fmt(up))
                     down = str(fmt(down))
 
@@ -678,7 +677,7 @@ class Number(object):
             # calculate the combined uncertainty without correlation
             idx = int(direction == self.DOWN)
             uncs = [self.uncertainties[name][idx] for name in names]
-            unc = sum(u**2. for u in uncs)**0.5
+            unc = sum(u**2.0 for u in uncs)**0.5
 
             # determine the output value
             if diff:
@@ -752,7 +751,7 @@ class Number(object):
         """
         return self._apply(operator.pow, *args, **kwargs)
 
-    def _apply(self, op, other, rho=1., inplace=True):
+    def _apply(self, op, other, rho=1.0, inplace=True):
         # when other is a correlation object and op is (mat)mul, return a deferred result that is to
         # be resolved in the next operation
         if isinstance(other, Correlation):
@@ -776,13 +775,13 @@ class Number(object):
 
         # propagate uncertainties
         uncs = {}
-        default = (0., 0.)
+        default = (0.0, 0.0)
         for name in set(num.uncertainties.keys()) | set(other.uncertainties.keys()):
             # get the correlation coefficient for this uncertainty
             if isinstance(rho, Correlation):
-                _rho = rho.get(name, 1. if rho.default is None else rho.default)
+                _rho = rho.get(name, 1.0 if rho.default is None else rho.default)
             elif isinstance(rho, dict):
-                _rho = rho.get(name, 1.)
+                _rho = rho.get(name, 1.0)
             else:
                 _rho = rho
 
@@ -1016,10 +1015,10 @@ class Correlation(object):
 
         # at most one positional argument is accepted
         if len(args) >= 2:
-            raise Exception("only one default value is accepted, got {} instead".format(args))
+            raise Exception("only one default value is accepted: {}".format(args))
 
         # store attributes
-        self.default = float(args[0]) if len(args) == 1 else 1.
+        self.default = float(args[0]) if len(args) == 1 else 1.0
         self.rhos = rhos
 
     def __repr__(self):
@@ -1295,7 +1294,7 @@ def add(x, n):
 
 @add.derive
 def add(x, n):
-    return 1.
+    return 1.0
 
 
 @ops.register(ufunc="subtract")
@@ -1308,7 +1307,7 @@ def sub(x, n):
 
 @sub.derive
 def sub(x, n):
-    return 1.
+    return 1.0
 
 
 @ops.register(ufunc="multiply")
@@ -1334,7 +1333,7 @@ def div(x, n):
 
 @div.derive
 def div(x, n):
-    return 1. / n
+    return 1.0 / n
 
 
 @ops.register(ufunc="power")
@@ -1347,7 +1346,7 @@ def pow(x, n):
 
 @pow.derive
 def pow(x, n):
-    return n * x**(n - 1.)
+    return n * x**(n - 1.0)
 
 
 @ops.register(ufunc="exp")
@@ -1379,9 +1378,9 @@ def log(x, base=None):
 @log.derive
 def log(x, base=None):
     if base is None:
-        return 1. / x
+        return 1.0 / x
     else:
-        return 1. / (x * infer_math(x).log(base))
+        return 1.0 / (x * infer_math(x).log(base))
 
 
 @ops.register(ufunc="log10")
@@ -1389,12 +1388,12 @@ def log10(x):
     """ log10(x)
     Logarithmic function with base 10.
     """
-    return log.function(x, base=10.)
+    return log.function(x, base=10.0)
 
 
 @log10.derive
 def log10(x):
-    return log.derivative(x, base=10.)
+    return log.derivative(x, base=10.0)
 
 
 @ops.register(ufunc="log2")
@@ -1402,12 +1401,12 @@ def log2(x):
     """ log2(x)
     Logarithmic function with base 2.
     """
-    return log.function(x, base=2.)
+    return log.function(x, base=2.0)
 
 
 @log2.derive
 def log2(x):
-    return log.derivative(x, base=2.)
+    return log.derivative(x, base=2.0)
 
 
 @ops.register(ufunc="sqrt")
@@ -1420,7 +1419,7 @@ def sqrt(x):
 
 @sqrt.derive
 def sqrt(x):
-    return 1. / (2 * infer_math(x).sqrt(x))
+    return 1.0 / (2.0 * infer_math(x).sqrt(x))
 
 
 @ops.register(ufunc="sin")
@@ -1459,7 +1458,7 @@ def tan(x):
 
 @tan.derive
 def tan(x):
-    return 1. / infer_math(x).cos(x)**2.
+    return 1.0 / infer_math(x).cos(x)**2.0
 
 
 @ops.register(ufunc="arcsin")
@@ -1476,7 +1475,7 @@ def asin(x):
 
 @asin.derive
 def asin(x):
-    return 1. / infer_math(x).sqrt(1 - x**2.)
+    return 1.0 / infer_math(x).sqrt(1 - x**2.0)
 
 
 @ops.register(ufunc="arccos")
@@ -1493,7 +1492,7 @@ def acos(x):
 
 @acos.derive
 def acos(x):
-    return -1. / infer_math(x).sqrt(1 - x**2.)
+    return -1.0 / infer_math(x).sqrt(1 - x**2.0)
 
 
 @ops.register(ufunc="arctan")
@@ -1510,7 +1509,7 @@ def atan(x):
 
 @atan.derive
 def atan(x):
-    return 1. / (1 + x**2.)
+    return 1.0 / (1.0 + x**2.0)
 
 
 @ops.register(ufunc="sinh")
@@ -1549,7 +1548,7 @@ def tanh(x):
 
 @tanh.derive
 def tanh(x):
-    return 1. / infer_math(x).cosh(x)**2.
+    return 1.0 / infer_math(x).cosh(x)**2.0
 
 
 @ops.register(ufunc="arcsinh")
@@ -1594,7 +1593,7 @@ def atanh(x):
 
 @atanh.derive
 def atanh(x):
-    return 1. / (1. - x**2.)
+    return 1.0 / (1.0 - x**2.0)
 
 
 #
@@ -1657,7 +1656,7 @@ def parse_ufloat(x, default_tag=Number.DEFAULT):
 
     # combine components to uncertainties, assume full correlation
     uncertainties = {
-        name: calculate_uncertainty(terms, rho=1.)
+        name: calculate_uncertainty(terms, rho=1.0)
         for name, terms in components.items()
     }
 
@@ -1699,7 +1698,7 @@ def split_value(val):
         split_value(-42.5) # -> (-4.25, 1)
 
         a = np.array([1, 0.123, -42.5])
-        split_value(a) # -> ([1., 1.23, -4.25], [0, -1, 1])
+        split_value(a) # -> ([1.0, 1.23, -4.25], [0, -1, 1])
 
     The significand will be a float while magnitude will be an integer. *val* can be reconstructed
     via ``significand * 10**magnitude``.
@@ -1709,73 +1708,18 @@ def split_value(val):
     if not is_numpy(val):
         # handle 0 separately
         if val == 0:
-            return (0., 0)
+            return (0.0, 0)
 
         mag = int(math.floor(math.log10(abs(val))))
-        sig = float(val) / (10.**mag)
+        sig = float(val) / (10.0**mag)
 
     else:
         log = np.zeros(val.shape)
         np.log10(np.abs(val), out=log, where=(val != 0))
         mag = np.floor(log).astype(int)
-        sig = val.astype(float) / (10.**mag)
+        sig = val.astype(float) / (10.0**mag)
 
     return (sig, mag)
-
-
-def _match_precision(val, ref, *args, **kwargs):
-    if isinstance(ref, float) and ref >= 1:
-        ref = int(ref)
-    val = decimal.Decimal(str(val))
-    ref = decimal.Decimal(str(ref))
-    return str(val.quantize(ref, *args, **kwargs))
-
-
-def match_precision(val, ref, *args, **kwargs):
-    """
-    Returns a string version of a value *val* matching the significant digits as given in *ref*.
-    *val* might also be a numpy array. All remaining *args* and *kwargs* are forwarded to
-    ``Decimal.quantize``. Example:
-
-    .. code-block:: python
-
-        match_precision(1.234, ".1") # -> "1.2"
-        match_precision(1.234, "1.") # -> "1"
-        match_precision(1.234, ".1", decimal.ROUND_UP) # -> "1.3"
-
-        a = np.array([1.234, 5.678, -9.101])
-        match_precision(a, ".1") # -> ["1.2", "5.7", "-9.1"]
-    """
-    val = ensure_nominal(val)
-
-    if not is_numpy(val):
-        ret = _match_precision(val, ref, *args, **kwargs)
-
-    else:
-        # strategy: map into a flat list, create chararray with max itemsize, reshape
-        strings = [_match_precision(v, r, *args, **kwargs) for v, r in np.nditer([val, ref])]
-        ret = np.chararray(len(strings), itemsize=max(len(s) for s in strings))
-        ret[:] = strings
-        ret = ret.reshape(val.shape)
-
-    return ret
-
-
-def _infer_precision(unc, sig, mag, method):
-    prec = 1
-    if method not in ("one", "onedigit"):
-        first_three = int(round(sig * 100))
-        if first_three <= 354:
-            prec += 1
-        elif first_three >= 950:
-            prec += 1
-            if method == "pdg":
-                sig = 1.0
-                mag += 1
-        if method in ("pub", "publication"):
-            prec += 1
-
-    return prec, sig, mag
 
 
 _op_map = {
@@ -1789,7 +1733,7 @@ _op_map = {
 _op_map_reverse = dict(zip(_op_map.values(), _op_map.keys()))
 
 
-def calculate_uncertainty(terms, rho=0.):
+def calculate_uncertainty(terms, rho=0.0):
     """
     Generically calculates the uncertainty of a quantity that depends on multiple *terms*. Each term
     is expected to be a 2-tuple containing the derivative and the uncertainty of the term.
@@ -1817,18 +1761,18 @@ def calculate_uncertainty(terms, rho=0.):
         # -> 2.5
     """
     # sum over squaresall single terms
-    variance = sum((derivative * uncertainty)**2. for derivative, uncertainty in terms)
+    variance = sum((derivative * uncertainty)**2.0 for derivative, uncertainty in terms)
 
     # add second order terms of all pairs
     for i in range(len(terms) - 1):
         for j in range(i + 1, len(terms)):
-            _rho = rho.get((i, j), 0.) if isinstance(rho, dict) else rho
-            variance += 2. * terms[i][0] * terms[j][0] * _rho * terms[i][1] * terms[j][1]
+            _rho = rho.get((i, j), 0.0) if isinstance(rho, dict) else rho
+            variance += 2.0 * terms[i][0] * terms[j][0] * _rho * terms[i][1] * terms[j][1]
 
     return variance**0.5
 
 
-def combine_uncertainties(op, unc1, unc2, nom1=None, nom2=None, rho=0.):
+def combine_uncertainties(op, unc1, unc2, nom1=None, nom2=None, rho=0.0):
     """
     Combines two uncertainties *unc1* and *unc2* according to an operator *op* which must be either
     ``"+"``, ``"-"``, ``"*"``, ``"/"``, or ``"**"``. The three latter operators require that you
@@ -1857,195 +1801,411 @@ def combine_uncertainties(op, unc1, unc2, nom1=None, nom2=None, rho=0.):
         if nom1 is None or nom2 is None:
             raise ValueError("operator '{}' requires nominal values".format(op))
         # numpy-safe conversion to float
-        nom1 *= 1.
-        nom2 *= 1.
+        nom1 *= 1.0
+        nom2 *= 1.0
         # convert uncertainties to relative values, taking into account zeros
         if is_numpy(nom1) and is_numpy(unc1):
             unc1 = np.array(unc1)
             non_zero = nom1 != 0
             unc1[non_zero] = unc1[non_zero] / nom1[non_zero]
-            unc1[~non_zero] = 0.
+            unc1[~non_zero] = 0.0
         elif nom1:
             unc1 = unc1 / nom1
         else:
-            unc1 = 0.
+            unc1 = 0.0
         if is_numpy(nom2) and is_numpy(unc2):
             unc2 = np.array(unc2)
             non_zero = nom2 != 0
             unc2[non_zero] = unc2[non_zero] / nom2[non_zero]
-            unc2[~non_zero] = 0.
+            unc2[~non_zero] = 0.0
         elif nom2:
             unc2 = unc2 / nom2
         else:
-            unc2 = 0.
+            unc2 = 0.0
         # determine the nominal value
         nom = abs(f(nom1, nom2))
     else:
-        nom = 1.
+        nom = 1.0
 
     # combined formula
     if op == "**":
-        return nom * abs(nom2) * (unc1**2. + (math.log(nom1) * unc2)**2. + 2 * rho *
-            math.log(nom1) * unc1 * unc2)**0.5
+        return (nom * abs(nom2) * (
+            unc1**2.0 + (math.log(nom1) * unc2)**2.0 + 2 * rho * math.log(nom1) * unc1 * unc2)**0.5)
     else:
         # flip rho for sub and div
         if op in ("-", "/"):
             rho = -rho
-        return nom * (unc1**2. + unc2**2. + 2. * rho * unc1 * unc2)**0.5
+        return nom * (unc1**2.0 + unc2**2.0 + 2.0 * rho * unc1 * unc2)**0.5
 
 
-def round_uncertainty(unc, method="publication"):
+def _match_precision(val, ref, **kwargs):
+    # extract settings not meant for quantize
+    force_float = kwargs.pop("force_float", False)
+
+    # default settings for qunatize
+    kwargs.setdefault("rounding", decimal.ROUND_HALF_UP)
+
+    # maybe cast to int
+    if not force_float and isinstance(ref, float) and ref >= 1:
+        ref = int(ref)
+
+    val = decimal.Decimal(str(val))
+    ref = decimal.Decimal(str(ref))
+
+    return str(val.quantize(ref, **kwargs))
+
+
+def match_precision(val, ref, **kwargs):
+    """ match_precision(val, ref, force_float=False, **kwargs)
+    Returns a string version of a value *val* matching the significant digits as given in *ref*.
+    *val* might also be a numpy array. Unless *force_float* is *True*, the returned string might
+    represent an integer in case the decimal digits are removed. All remaining *kwargs* are
+    forwarded to ``Decimal.quantize``. Example:
+
+    .. code-block:: python
+
+        match_precision(1.234, "0.1") # -> "1.2"
+        match_precision(1.234, "1.0") # -> "1"
+        match_precision(1.234, "0.1", decimal.ROUND_UP) # -> "1.3"
+
+        a = np.array([1.234, 5.678, -9.101])
+        match_precision(a, "0.1") # -> ["1.2", "5.7", "-9.1"]
     """
-    Rounds an uncertainty *unc* following a specific *method* and returns a 2-tuple containing the
-    significant digits as a string, and the decimal magnitude that is required to recover the
-    uncertainty. *unc* might also be a numpy array. Rounding methods:
+    val = ensure_nominal(val)
+
+    if not is_numpy(val):
+        ret = _match_precision(val, ref, **kwargs)
+
+    else:
+        # strategy: map into a flat list, create chararray with max itemsize, reshape
+        strings = [
+            _match_precision(float(v), float(r), **kwargs)
+            for v, r in np.nditer([val, ref])
+        ]
+        ret = np.chararray(len(strings), itemsize=max(len(s) for s in strings))
+        ret[:] = strings
+        ret = ret.reshape(val.shape)
+
+    return ret
+
+
+def infer_uncertainty_precision(sig, mag, method):
+    """
+    Infers the precision of a number given its significand *sig* and mangnitude *mag* for a certain
+    *method*. The precision corresponds to the amount of significant digits to keep and, in
+    particular, does not refer to the number of digits after the decimal point A 3-tuple with
+    (precision, significand, magnitude) is returned.
+
+    The *method* can either be a positive integer which directly translates to the precision, or a
+    string. In the later case, see :py:func:`round_uncertainty` for details.
+    """
+    _is_numpy = is_numpy(sig)
+
+    if isinstance(method, integer_types):
+        if method <= 0:
+            raise ValueError("cannot infer precision for non-positive method value '{}'".format(
+                method))
+
+        prec = method
+        if _is_numpy:
+            prec = np.ones(sig.shape, int) * prec
+
+    elif method in ["pdg", "pdg+1", "publication", "pub"]:
+        # default precision
+        prec = 1 if method == "pdg" else 2
+
+        if not _is_numpy:
+            # make all decisions based on the three leading digits
+            first_three = int(round(sig * 100))
+            is_small = first_three <= 354
+            is_large = first_three >= 950
+            if is_small:
+                prec += 1
+            elif is_large and method in ["pdg", "pdg+1"]:
+                # ceil and increase the magnitude
+                sig = 1.0
+                mag += 1
+                prec += 1
+
+        else:  # is_numpy
+            if not is_numpy(mag) or sig.shape != mag.shape:
+                raise ValueError("sig and mag must both be NumPy arrays with the same shape, got\n"
+                    "{}\nand\n{}".format(sig, mag))
+
+            prec = np.ones(sig.shape, int) * prec
+
+            # make all decisions based on the three leading digits
+            first_three = np.round(sig * 100).astype(int)
+            is_small = first_three <= 354
+            is_large = first_three >= 950
+            prec[is_small] += 1
+            if method in ["pdg", "pdg+1"]:
+                # ceil and increase the magnitude
+                sig[is_large] = 1.0
+                mag[is_large] += 1
+                prec[is_large] += 1
+
+    else:
+        raise ValueError("unknown method for inferring precision: {}".format(method))
+
+    return prec, sig, mag
+
+
+# names of methods that are purely based on uncertainties
+infer_uncertainty_precision.uncertainty_methods = ["pdg", "pdg+1", "publication", "pub"]
+
+
+def round_uncertainty(unc, method=1, precision=None, **kwargs):
+    """
+    Rounds an uncertainty *unc* following a specific *method* and returns a 3-tuple containing the
+    significant digits as a string, the decimal magnitude that is required to recover the
+    uncertainty, and the precision (== number of significant digits). *unc* might also be a numpy
+    array. Possible values for the rounding *method* are:
 
     - ``"pdg"``: Rounding rules as defined by the `PDG
-      <http://pdg.lbl.gov/2011/reviews/rpp2011-rev-rpp-intro.pdf#page=13>`_.
-    - ``"publication"``, ``"pub``: Like ``"pdg"`` with an extra significant digit for results that
-      need to be combined later.
-    - ``"onedigit"``, ``"one"``: Forces one single significant digit. This is useful when there are
-      multiple uncertainties that vary by more than a factor 10 among themselves.
+      <https://pdg.lbl.gov/2021/reviews/rpp2021-rev-rpp-intro.pdf#page=18>`_.
+    - ``"pdg+1"``: Same rules as for ``"pdg"`` with an additional significant digit.
+    - ``"publication"``, ``"pub``: Same rules as for``"pdg+1"`` but without the rounding of the
+      first three significant digits above 949 to 1000.
+    - positive integer: Enforces a fixed number of significant digits.
+
+    By default, the target *precision* is derived from the rounding method itself. However, a value
+    can be defined to enfore a certain number of significant digits **after** the rounding took
+    place. This is only useful for methods that include fixed rounding thresholds (``"pdg"``). All
+    remaining *kwargs* are forwarded to :py:func:`match_precision` which is performing the rounding
+    internally.
 
     Example:
 
     .. code-block:: python
 
-        round_uncertainty(0.123, "pub") # -> ("123", -3)
-        round_uncertainty(0.123, "pdg") # -> ("12", -2)
-        round_uncertainty(0.123, "one") # -> ("1", -1)
+        round_uncertainty(0.123, 1)      # -> ("1", -1, 1)
+        round_uncertainty(0.123, "pub")  # -> ("123", -3, 3)
+        round_uncertainty(0.123, "pdg")  # -> ("12", -2, 2)
 
-        round_uncertainty(0.456, "pub") # -> ("46", -2)
-        round_uncertainty(0.456, "pdg") # -> ("5", -1)
-        round_uncertainty(0.456, "one") # -> ("5", -1)
+        round_uncertainty(0.456, 1)      # -> ("5", -1, 1)
+        round_uncertainty(0.456, "pub")  # -> ("46", -2, 2)
+        round_uncertainty(0.456, "pdg")  # -> ("5", -1, 1)
 
-        round_uncertainty(0.987, "pub") # -> ("987", -3)
-        round_uncertainty(0.987, "pdg") # -> ("10", -1)
-        round_uncertainty(0.987, "one") # -> ("10", -1)
+        round_uncertainty(9.87, 1)      # -> ("1", 1, 1)
+        round_uncertainty(9.87, "pub")  # -> ("99", -1, 2)
+        round_uncertainty(9.87, "pdg")  # -> ("10", 0, 2)
 
+        # enfore higher precision
+        round_uncertainty(0.987, "pub", precision=3)  # -> ("990", -3, 3)
+        round_uncertainty(0.987, "pdg", precision=3)  # -> ("100", -2, 3)
+
+        # numpy array support
         a = np.array([0.123, 0.456, 0.987])
-        round_uncertainty(a, "pub") # -> (["123", "46", "987"], [-3, -2, -3])
+        round_uncertainty(a, "pub")  # -> (["123", "46", "987"], [-3, -2, -3])
     """
-    # validate the method
-    meth = method.lower()
-    if meth not in ("pub", "publication", "pdg", "one", "onedigit"):
-        raise ValueError("unknown rounding method: {}".format(method))
-
     # split the uncertainty
     sig, mag = split_value(unc)
 
     # infer the precision based on the method and get updated significand and magnitude
-    if not is_numpy(unc):
-        prec, sig, mag = _infer_precision(unc, sig, mag, meth)
-        replace_args = (".", "")
-    else:
-        prec = np.ones(unc.shape).astype(int)
-        for p, u, s, m in np.nditer([prec, unc, sig, mag], op_flags=["readwrite"]):
-            p[...], s[...], m[...] = _infer_precision(u, s, m, meth)
-        replace_args = (b".", b"")
+    prec, sig, mag = infer_uncertainty_precision(sig, mag, method)
 
-    # determine the significant digits and the decimal magnitude that would reconstruct the value
-    digits = match_precision(sig, 10.**(1 - prec)).replace(*replace_args)
+    # apply the rounding and determine the decimal magnitude that would reconstruct the value
+    digits = match_precision(sig * 10.0**(prec - 1), "1", **kwargs)
     mag -= prec - 1
 
-    return (digits, mag)
+    # the number of digits is now equal to the precision, except for cases where the rounding raised
+    # the value to the next order of magnitude, and we rather want to encode this in the magnitude
+    _is_numpy = is_numpy(digits)
+    if not _is_numpy:
+        if len(digits) > prec:
+            digits = digits[:-1]
+            mag += 1
+    else:
+        mask = np.char.str_len(digits) > prec
+        mag[mask] += 1
+        digits_flat = digits.reshape(-1)
+        prec_flat = prec.reshape(-1)
+        digits_flat[:] = [(d[:-1] if len(d) > p else d) for d, p in zip(digits_flat, prec_flat)]
+        digits = digits_flat.reshape(digits.shape)
+
+    # when a custom precision is set, update the digits and magnitude
+    if precision is not None:
+        if _is_numpy:
+            if not is_numpy(precision):
+                precision = np.ones(digits.shape, int) * precision
+            if np.any(precision <= 0):
+                raise ValueError("precision must be positive: {}".format(precision))
+        elif precision <= 0:
+            raise ValueError("precision must be positive: {}".format(precision))
+
+        digits_float = np.array(digits, float) if _is_numpy else float(digits)
+        digits = match_precision(digits_float * 10.0**(precision - prec), "1", **kwargs)
+        mag -= precision - prec
+
+    return (digits, mag, len(digits) if not _is_numpy else np.char.str_len(digits))
 
 
-def round_value(val, unc=None, unc_down=None, method="publication"):
+def round_value(val, unc=None, method=0, align_precision=True, **kwargs):
     """
-    Rounds a number *val* with a single symmetric uncertainty *unc* or asymmetric uncertainties
-    *unc* (interpreted as the *up* variation) and *unc_down*, and calculates the orders of their
-    magnitudes. They both can be a float or a list of floats for simultaneous evaluation. When *val*
-    is a :py:class:`Number` instance, its combined uncertainty is used instead. Returns a 3-tuple
-    containing:
+    Rounds a number *val* with an uncertainty *unc* which can be a single float or array (symmetric)
+    or a 2-tuple (asymmetric up / down) of floats or arrays. It also supports a list of these values
+    for simultaneous evaluation. When *val* is a :py:class:`Number` instance, its uncertainties are
+    used in their default iteration order. Returns a 3-tuple containing:
 
     - The string representation of the central value.
-    - The string representations of the uncertainties in a list. For the symmetric case, this list
-      contains only one element.
+    - The string representation(s) of uncertainties. The structure is identical to the one passed on
+      *unc*.
     - The decimal magnitude.
+
+    *method* controls the behavior of the rounding:
+
+    1. When ``"pdg"``, ``"pdg+1"``, ``"publication"``, or ``"pub"``, uncertainties are required and
+       internally :py:func:`round_uncertainty` is used to infer the precision based on the smallest
+       uncertainty.
+    2. When a formatting string is passed, it should have the (default) pattern ``"%*.<N>f"``, and
+       *N* is interpreted as the number of digits after the decimal point.
+    3. When a negative integer or zero (the default) is passed, the value is interpreted as the
+       number of digits after the decimal point (similar to passing a format string).
+    4. When a positive number is passed, it is interpreted as the amount of significant digits to
+       keep, evaluated on the smallest number among either the nominal or uncertainty values.
+
+    In case multiple uncertainties are given and the rounding *method* is uncertainty-based (1.
+    above), the precision is derived based on the smallest uncertainty as a reference and then
+    enforced to the nominal value and all other uncertainties when *align_precision* is *True*.
+    Otherwise, values are allowed to have different precisions. All remaining *kwargs* are forwarded
+    to :py:func:`match_precision` which is performing the rounding internally.
 
     Examples:
 
     .. code-block:: python
 
-        round_value(1.23, 0.456)        # -> ("123", ["46"], -2)
-        round_value(1.23, 0.456, 0.987) # -> ("123", ["46", "99"], -2)
+        # differnt uncertainty structures
+        round_value(1.23, 0.456, 1)             # -> ("12", "5", -1)
+        round_value(1.23, [0.456], 1)           # -> ("12", ["5"], -1)
+        round_value(1.23, (0.456, 0.987), 1)    # -> ("12", ("5", "10"), -1)
+        round_value(1.23, [(0.456, 0.987)], 1)  # -> ("12", [("5", "10")], -1)
+        round_value(1.23, [0.456, 0.987], 1)    # -> ("12", ["5", "10"], -1)
 
-        round_value(1.23, [0.456, 0.312]) # -> ("123", [["456", "312"]], -3)
+        # different rounding methods
+        round_value(125.09, (0.56, 0.97))          # -> ("125", ("1", "1"), 0)
+        round_value(125.09, (0.56, 0.97), "pub")   # -> ("12509", ("56", "97"), -2)
+        round_value(125.09, (0.56, 0.97), "%.2f")  # -> ("12509", ("56", "97"), -2)
+        round_value(125.09, (0.56, 0.97), -2)      # -> ("12509", ("56", "97"), -2)
+        round_value(125.09, (0.56, 0.97), 3)       # -> ("125090", ("560", "970"), -3)
 
+        # without uncertainties
+        round_value(125.09, method=2)       # -> ("13", None, 1)
+        round_value(125.09, method=-2)      # -> ("12509", None, -2)
+        round_value(125.09, method="%.2f")  # -> ("12509", None, -2)
+        round_value(125.09, method="pdg")   # -> Exception, "pdg" is uncertainty based
+
+        # array support
         vals = np.array([1.23, 4.56])
         uncs = np.array([0.45678, 0.078])
-        round_value(vals, uncs) # -> (["1230", "4560"], [["457", "78"]], -3)
+        round_value(vals, uncs, 2)  # -> (["123", "4560"], ["46", "78"], [-2, -3])
     """
     if isinstance(val, Number):
-        unc, unc_down = val.get_uncertainty()
+        unc = list(val.uncertainties.values()) or None
         val = val.nominal
 
-    # prepare unc values
-    asym = unc_down is not None
-    unc_up = unc
-    if not asym:
-        unc_down = unc_up
+    # treat uncertainties as lists for simultaneous rounding and run checks
+    has_unc = unc is not None
+    _is_numpy = is_numpy(val)
+    if has_unc:
+        multi = isinstance(unc, list)
+        if not multi:
+            unc = [unc]
+        flat_unc = []
 
-    if not is_numpy(val):
-        # treat as lists for simultaneous rounding
-        passed_list = isinstance(unc_up, (list, tuple)) or isinstance(unc_down, (list, tuple))
-        unc_up = make_list(unc_up)
-        unc_down = make_list(unc_down)
+        for i, u in enumerate(list(unc)):
+            asym = isinstance(u, tuple)
+            if asym and len(u) != 2:
+                raise ValueError("asymmetric uncertainties must provided as 2-tuple: {}".format(u))
 
-        # sanity checks
-        if len(unc_up) != len(unc_down):
-            raise ValueError("uncertainties should have same length when passed as sequences")
-        for u in unc_up + unc_down:
-            if not try_float(u):
-                raise TypeError("uncertainties must be convertible to float: {}".format(u))
-            if u < 0:
-                raise ValueError("uncertainties must be positive: {}".format(u))
+            _us = list(u) if asym else [u]
+            if not _is_numpy:
+                for _u in _us:
+                    if not try_float(_u):
+                        raise TypeError("uncertainties must be convertible to float: {}".format(_u))
+                    if _u < 0:
+                        raise ValueError("uncertainties must be positive: {}".format(_u))
 
-        # to determine the precision, use the uncertainty with the smallest magnitude
-        ref_mag = min(round_uncertainty(u, method=method)[1] for u in unc_up + unc_down)
+            else:
+                for j, _u in enumerate(list(_us)):
+                    if not is_numpy(_u):
+                        if not try_float(_u):
+                            raise TypeError("uncertainty is neither array nor float: {}".format(_u))
+                        _us[j] = _u = _u * np.ones_like(val)
+                    if (_u < 0).any():
+                        raise ValueError("uncertainties must be positive: {}".format(_u))
+                unc[i] = tuple(_us) if asym else _us[0]
 
-        # convert the uncertainty and central value to match the reference magnitude
-        scale = 1. / 10.**ref_mag
-        val_str = match_precision(scale * val, "1")
-        up_strs = [match_precision(scale * u, "1") for u in unc_up]
-        down_strs = [match_precision(scale * u, "1") for u in unc_down]
+            # store in flat list of uncertainty values
+            flat_unc.extend(_us)
 
-        if passed_list:
-            return (val_str, [up_strs, down_strs] if asym else [up_strs], ref_mag)
+    # determine the formatting or precision, based on the rounding method
+    if method in infer_uncertainty_precision.uncertainty_methods:
+        # uncertainty based rounding
+        if not has_unc:
+            raise ValueError("cannot perform uncertainty based rounding with method '{}' "
+                "without uncertainties on value {}".format(method, val))
+
+        # use the uncertainty with the smallest magnitude
+        get_mag = lambda u: round_uncertainty(u, method=method)[1]
+        if not _is_numpy:
+            ref_mag = min(map(get_mag, flat_unc))
         else:
-            return (val_str, [up_strs[0], down_strs[0]] if asym else [up_strs[0]], ref_mag)
+            ref_mag = np.min(np.stack([
+                np.minimum(*map(get_mag, u)) if isinstance(u, tuple) else get_mag(u)
+                for u in unc
+            ], axis=0), axis=0)
+
+        # if requested, enforce rounding of the nominal value and all uncertainties according to
+        # the selected method resulting in consistent precisions
+        if align_precision:
+            def rnd(u):
+                digits, mag, _ = round_uncertainty(u, method=method)
+                return (np.array(digits, float) if _is_numpy else float(digits)) * 10.0**mag
+            unc = [
+                (tuple(map(rnd, u)) if isinstance(u, tuple) else rnd(u))
+                for u in unc
+            ]
+
+    elif isinstance(method, integer_types) and method > 0:
+        # positive integer passed, interpret as number of significant digits of smallest value,
+        # either in nominal value or uncertainties
+        ref = val
+        if has_unc:
+            if not _is_numpy:
+                ref = min([val] + flat_unc)
+            else:
+                ref = np.min(np.stack([val] + flat_unc, axis=0), axis=0)
+        ref_mag = split_value(ref)[1] - (method - 1)
+
+    elif ((isinstance(method, integer_types) and method <= 0) or
+            (isinstance(method, string_types) and method.startswith("%"))):
+        # negative number of format string, interpret as number of digits after decimal point
+        if isinstance(method, string_types):
+            m = re.match(r"^\%.*\.(\d+)f$", method)
+            if not m:
+                raise ValueError("format string should end with '.<int>f': {}".format(method))
+            method = -int(m.group(1))
+
+        # trivial case
+        if not _is_numpy:
+            ref_mag = method
+        else:
+            ref_mag = np.ones_like(val, int) * method
 
     else:
-        # check uncertainties and cast to arrays when plain numbers
-        if not is_numpy(unc_up):
-            if not try_float(unc_up):
-                raise TypeError("uncertainty is neither an array nor float compatible: {}".format(
-                    unc_up))
-            unc_up = unc_up * np.ones_like(val)
-        if not is_numpy(unc_down):
-            if not try_float(unc_down):
-                raise TypeError("uncertainty is neither an array nor float compatible: {}".format(
-                    unc_down))
-            unc_down = unc_down * np.ones_like(val)
+        raise ValueError("unknown method for rounding value: {}".format(method))
 
-        # sanity checks
-        if (unc_up < 0).any():
-            raise ValueError("uncertainties must be positive: {}".format(unc_up))
-        elif (unc_down < 0).any():
-            raise ValueError("uncertainties must be positive: {}".format(unc_down))
+    # round the central value and uncertainties
+    apply_rounding = lambda v: match_precision(v * 10.0**(-ref_mag), "1", **kwargs)
+    val_str = apply_rounding(val)
+    if has_unc:
+        unc_strs = [
+            (tuple(map(apply_rounding, u)) if isinstance(u, tuple) else apply_rounding(u))
+            for u in unc
+        ]
 
-        # to determine the precision, use the uncertainty with the smallest magnitude
-        ref_mag_up = round_uncertainty(unc_up, method=method)[1]
-        ref_mag_down = round_uncertainty(unc_down, method=method)[1]
-        ref_mag = min(ref_mag_up.min(), ref_mag_down.min())
-
-        scale = 1. / 10.**ref_mag
-        val_str = match_precision(scale * val, "1")
-        up_str = match_precision(scale * unc_up, "1")
-        down_str = match_precision(scale * unc_down, "1")
-
-        return (val_str, [up_str, down_str] if asym else [up_str], ref_mag)
+    return (val_str, (unc_strs if multi else unc_strs[0]) if has_unc else None, ref_mag)
 
 
 si_refixes = dict(zip(
