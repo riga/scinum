@@ -1857,10 +1857,23 @@ def combine_uncertainties(op, unc1, unc2, nom1=None, nom2=None, rho=0.0):
         if nom1 is None or nom2 is None:
             raise ValueError("operator '{}' requires nominal values".format(op))
         # numpy-safe conversion to float
-        nom1 *= 1.0
-        nom2 *= 1.0
+        nom1 = nom1 * 1.0
+        nom2 = nom2 * 1.0
+
+        # ensure none or both values are arrays
+        def ensure_numpy(nom, unc):
+            nom_numpy, unc_numpy = is_numpy(nom), is_numpy(unc)
+            if nom_numpy and not unc_numpy:
+                unc = np.ones_like(nom, float) * unc
+            elif not nom_numpy and unc_numpy:
+                nom = np.ones_like(unc, float) * nom
+            return (nom_numpy or unc_numpy), nom, unc
+
+        is_numpy1, nom1, unc1 = ensure_numpy(nom1, unc1)
+        is_numpy2, nom2, unc2 = ensure_numpy(nom2, unc2)
+
         # convert uncertainties to relative values, taking into account zeros
-        if is_numpy(nom1) and is_numpy(unc1):
+        if is_numpy1:
             unc1 = np.array(unc1)
             non_zero = nom1 != 0
             unc1[non_zero] = unc1[non_zero] / nom1[non_zero]
@@ -1869,7 +1882,7 @@ def combine_uncertainties(op, unc1, unc2, nom1=None, nom2=None, rho=0.0):
             unc1 = unc1 / nom1
         else:
             unc1 = 0.0
-        if is_numpy(nom2) and is_numpy(unc2):
+        if is_numpy2:
             unc2 = np.array(unc2)
             non_zero = nom2 != 0
             unc2[non_zero] = unc2[non_zero] / nom2[non_zero]
@@ -1878,6 +1891,7 @@ def combine_uncertainties(op, unc1, unc2, nom1=None, nom2=None, rho=0.0):
             unc2 = unc2 / nom2
         else:
             unc2 = 0.0
+
         # determine the nominal value
         nom = abs(f(nom1, nom2))
     else:
