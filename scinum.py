@@ -1179,8 +1179,7 @@ class Operation(object):
         super(Operation, self).__init__()
 
         # check that combined op is known
-        if (py_op and py_op not in _py_ops
-                and py_op not in _py_ops_reverse):
+        if py_op and py_op not in _py_ops and py_op not in _py_ops_reverse:
             raise ValueError("unknown py_op: {}".format(py_op))
 
         # store attributes
