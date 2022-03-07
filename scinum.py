@@ -29,6 +29,7 @@ import operator
 import types
 import decimal
 from collections import defaultdict, OrderedDict
+import warnings
 
 # optional imports
 try:
@@ -205,13 +206,13 @@ class Number(object):
         num(UP)                          # => 4.214... (all uncertainties)
 
         # get only the uncertainty (unsigned)
-        num(DOWN, ("sourceE", "sourceF"), diff=True)  # => 0.583...
+        num(DOWN, ("sourceE", "sourceF"), unc=True)  # => 0.583...
 
         # get the uncertainty factor (unsigned)
         num(DOWN, ("sourceE", "sourceF"), factor=True)  # => 1.233...
 
         # combined
-        num(DOWN, ("sourceE", "sourceF"), diff=True, factor=True)  # => 0.233...
+        num(DOWN, ("sourceE", "sourceF"), unc=True, factor=True)  # => 0.233...
 
     When *uncertainties* is not a dictionary, it is interpreted as the *default* uncertainty, named
     ``Number.DEFAULT``.
@@ -660,14 +661,19 @@ class Number(object):
             uncertainties = self.uncertainties
         return self.__class__(nominal, uncertainties=uncertainties)
 
-    def get(self, direction=NOMINAL, names=ALL, diff=False, factor=False):
-        """ get(direction=NOMINAL, names=ALL, diff=False, factor=False)
+    def get(self, direction=NOMINAL, names=ALL, unc=False, factor=False, diff=None):
+        """ get(direction=NOMINAL, names=ALL, unc=False, factor=False)
         Returns different representations of the contained value(s). *direction* should be any of
         *NOMINAL*, *UP* or *DOWN*. When not *NOMINAL*, *names* decides which uncertainties to take
-        into account for the combination. When *diff* is *True*, only the unsigned, combined
+        into account for the combination. When *unc* is *True*, only the unsigned, combined
         uncertainty is returned. When *False*, the nominal value plus or minus the uncertainty is
         returned. When *factor* is *True*, the ratio w.r.t. the nominal value is returned.
         """
+        if diff is not None:
+            warnings.warn(message="the 'diff' argument is deprecated and will be removed in future "
+                "versions, please us 'unc' instead", category=DeprecationWarning)
+            unc = diff
+
         if direction == self.NOMINAL:
             value = self.nominal
 
