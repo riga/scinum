@@ -146,6 +146,12 @@ Functions
 .. autofunction:: infer_si_prefix
 
 
+``create_hep_data_representer``
+-------------------------------
+
+.. autofunction:: create_hep_data_representer
+
+
 Other attributes
 ^^^^^^^^^^^^^^^^
 
@@ -171,7 +177,18 @@ Other attributes
 .. py:attribute:: HAS_NUMPY
    type: bool
 
-   A flag that is *True* when numpy is available on your system, *False* otherwise.
+   A flag that is *True* when NumPy is available on your system, *False* otherwise.
+
+.. py:attribute:: HAS_UNCERTAINTIES
+   type: bool
+
+   A flag that is *True* when the uncertainties package is available on your system, *False*
+   otherwise.
+
+.. py:attribute:: HAS_YAML
+   type: bool
+
+   A flag that is *True* when PyYAML is available on your system, *False* otherwise.
 
 .. py:attribute:: NOMINAL
    type: string

@@ -8,6 +8,7 @@ import os
 import sys
 import math
 import decimal
+import operator
 import unittest
 
 # adjust the path to import scinum
@@ -244,7 +245,8 @@ class TestCase(unittest.TestCase):
     @if_numpy
     def test_uncertainty_combination_numpy(self):
         num = Number(np.array([2, 4, 6]), 2)
-        num2 = Number(np.array([1, 2, 3]), 1)
+        arr = np.array([1, 2, 3])
+        num2 = Number(arr, 1)
 
         # fully correlated division
         d = num / num2
@@ -257,6 +259,13 @@ class TestCase(unittest.TestCase):
         self.assertAlmostEqual(d.u(direction=UP)[0], 2. / 1. * 2.**0.5, 6)
         self.assertAlmostEqual(d.u(direction=UP)[1], 2. / 2. * 2.**0.5, 6)
         self.assertAlmostEqual(d.u(direction=UP)[2], 2. / 3. * 2.**0.5, 6)
+
+        # division by plain array
+        d = num / arr
+        self.assertEqual(tuple(d()), (2., 2., 2.))
+        self.assertAlmostEqual(d.u(direction=UP)[0], 2.0, 6)
+        self.assertAlmostEqual(d.u(direction=UP)[1], 1.0, 6)
+        self.assertAlmostEqual(d.u(direction=UP)[2], 0.666667, 6)
 
     def test_uncertainty_propagation(self):
         # ops with constants
@@ -357,7 +366,7 @@ class TestCase(unittest.TestCase):
 
         self.assertFalse("foo" in ops)
 
-        @ops.register(ufunc="absolute")
+        @ops.register(ufuncs="absolute")
         def foo(x, a, b, c):
             return a + b * x + c * x ** 2
 
@@ -390,11 +399,21 @@ class TestCase(unittest.TestCase):
         self.assertAlmostEqual(num.get(UP)[0], 10.87313, 4)
         self.assertAlmostEqual(num.get(UP)[1], 29.55623, 4)
 
+        a = Number(np.array([1.0, 2.0]), np.array([0.5, 0.5]))
+        b = Number(np.array([2.0, 3.0]), np.array([0.5, 0.5]))
+        for op in [operator.truediv, np.divide]:
+            c = op(a, b)
+            self.assertAlmostEqual(c.nominal[0], 0.5, 5)
+            self.assertAlmostEqual(c.nominal[1], 2. / 3., 5)
+            self.assertAlmostEqual(c.get(UP)[0], 0.625, 5)
+            self.assertAlmostEqual(c.get(UP)[1], 0.722222, 5)
+            self.assertAlmostEqual(c.get(DOWN)[0], 0.375, 5)
+
     def test_op_pow(self):
         num = ops.pow(self.num, 2)
         self.assertEqual(num(), self.num() ** 2.)
         self.assertEqual(num.u("A", UP),
-            2. * num() * self.num(UP, "A", diff=True, factor=True))
+            2. * num() * self.num(UP, "A", unc=True, factor=True))
 
     def test_op_exp(self):
         num = ops.exp(self.num)
@@ -404,12 +423,12 @@ class TestCase(unittest.TestCase):
     def test_op_log(self):
         num = ops.log(self.num)
         self.assertEqual(num(), math.log(self.num()))
-        self.assertEqual(num.u("A", UP), self.num(UP, "A", diff=True, factor=True))
+        self.assertEqual(num.u("A", UP), self.num(UP, "A", unc=True, factor=True))
 
         num = ops.log(self.num, 2.)
         self.assertEqual(num(), math.log(self.num(), 2))
         self.assertAlmostEqual(num.u("A", UP),
-            self.num(UP, "A", diff=True, factor=True) / math.log(2))
+            self.num(UP, "A", unc=True, factor=True) / math.log(2))
 
     def test_op_sin(self):
         num = ops.sin(self.num)

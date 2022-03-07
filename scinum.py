@@ -17,7 +17,7 @@ __version__ = "1.3.0"
 __all__ = [
     "Number", "Correlation", "DeferredResult", "Operation",
     "ops", "style_dict",
-    "REL", "ABS", "NOMINAL", "UP", "DOWN",
+    "REL", "ABS", "NOMINAL", "UP", "DOWN", "N", "U", "D",
 ]
 
 
@@ -271,6 +271,18 @@ class Number(object):
 
        Constant that denotes the down direction (``"down"``).
 
+    .. py:classattribute:: N
+
+       Shorthand for :py:attr:`NOMINAL`.
+
+    .. py:classattribute:: U
+
+       Shorthand for :py:attr:`UP`.
+
+    .. py:classattribute:: D
+
+       Shorthand for :py:attr:`DOWN`.
+
     .. py:attribute:: nominal
        type: float
 
@@ -316,6 +328,11 @@ class Number(object):
     NOMINAL = "nominal"
     UP = "up"
     DOWN = "down"
+
+    # aliases
+    N = NOMINAL
+    U = UP
+    D = DOWN
 
     default_format = "%s"
 
@@ -690,15 +707,15 @@ class Number(object):
             # calculate the combined uncertainty without correlation
             idx = int(direction == self.DOWN)
             uncs = [self.uncertainties[name][idx] for name in names]
-            unc = sum(u**2.0 for u in uncs)**0.5
+            combined_unc = sum(u**2.0 for u in uncs)**0.5
 
             # determine the output value
-            if diff:
-                value = unc
+            if unc:
+                value = combined_unc
             elif direction == self.UP:
-                value = self.nominal + unc
+                value = self.nominal + combined_unc
             else:
-                value = self.nominal - unc
+                value = self.nominal - combined_unc
 
         else:
             raise ValueError("unknown direction: {}".format(direction))
@@ -764,14 +781,22 @@ class Number(object):
         """
         return self._apply(operator.pow, *args, **kwargs)
 
-    def _apply(self, op, other, rho=1.0, inplace=True):
+    def _apply(self, op, other, rho=1.0, inplace=True, **kwargs):
+        # get the python op
+        py_op = op
+        if isinstance(op, Operation):
+            py_op = op.py_op
+            if not py_op:
+                raise RuntimeError("cannot apply operation using {} intance that is not configured "
+                    "to combine uncertainties of two operations".format(op))
+
         # when other is a correlation object and op is (mat)mul, return a deferred result that is to
         # be resolved in the next operation
         if isinstance(other, Correlation):
-            if op not in correlation_ops:
+            if py_op not in correlation_ops:
                 names = ",".join(o.__name__ for o in correlation_ops)
                 raise ValueError("cannot apply correlation object {} via operator {}, supported "
-                    "operators are: {}".format(other, op.__name__, names))
+                    "operators are: {}".format(other, py_op.__name__, names))
             return DeferredResult(self, other)
 
         # when other is a deferred result, use its number of correlation
@@ -784,7 +809,7 @@ class Number(object):
         other = ensure_number(other)
 
         # calculate the nominal value
-        nom = op(num.nominal, other.nominal)
+        nom = py_op(num.nominal, other.nominal)
 
         # propagate uncertainties
         uncs = {}
@@ -803,7 +828,7 @@ class Number(object):
             other_unc = other.get_uncertainty(name, default=default)
 
             # combine them
-            uncs[name] = tuple(combine_uncertainties(op, num_unc[i], other_unc[i],
+            uncs[name] = tuple(combine_uncertainties(py_op, num_unc[i], other_unc[i],
                 nom1=num.nominal, nom2=other.nominal, rho=_rho) for i in range(2))
 
         # store values
@@ -824,10 +849,20 @@ class Number(object):
         # extract kwargs
         out = kwargs.pop("out", None)
 
-        # apply the op
-        result = op(*inputs, **kwargs)
+        # make sure all inputs are numbers
+        inputs = tuple(map(ensure_number, inputs))
 
-        # insert in-place to an "out" object?
+        # when the operation combines uncertainties of two numbers, use _apply, otherwise, just
+        # let the operation itself handle the uncerainty update
+        if op.has_py_op():
+            if len(inputs) != 2:
+                raise RuntimeError("the operation '{}' is configured to combine uncertainties of "
+                    "two operands, but received only {}: {}".format(op, len(inputs), inputs))
+            result = inputs[0]._apply(op, inputs[1], inplace=False, **kwargs)
+        else:
+            result = op(*inputs, **kwargs)
+
+        # insert in-place to out when set
         if out is not None:
             out = out[0]
             out.clear(result.nominal, result.uncertainties)
@@ -1006,6 +1041,9 @@ ABS = Number.ABS
 NOMINAL = Number.NOMINAL
 UP = Number.UP
 DOWN = Number.DOWN
+N = Number.N
+U = Number.U
+D = Number.D
 
 
 class Correlation(object):
@@ -1090,6 +1128,19 @@ class DeferredResult(object):
         self.correlation = correlation
 
 
+# python ops for which uncertainty propagation combining two operands is implemented
+# (propagation through all other ops is straight forward using derivatives)
+_py_ops = {
+    "+": operator.add,
+    "-": operator.sub,
+    "*": operator.mul,
+    "/": operator.truediv,
+    "**": operator.pow,
+}
+
+_py_ops_reverse = dict(zip(_py_ops.values(), _py_ops.keys()))
+
+
 class Operation(object):
     """
     Wrapper around a function and its derivative.
@@ -1110,6 +1161,13 @@ class Operation(object):
 
        The name of the operation.
 
+    .. py:attribute:: py_op
+       type: None, string
+       read-only
+
+       The symbol referring to an operation that implements uncertainty propagation combining two
+       operands.
+
     .. py:attribute:: ufuncs
        type: list
        read-only
@@ -1117,12 +1175,19 @@ class Operation(object):
        List of ufunc objects that this operation handles.
     """
 
-    def __init__(self, function, derivative=None, name=None, ufuncs=None):
+    def __init__(self, function, derivative=None, name=None, py_op=None, ufuncs=None):
         super(Operation, self).__init__()
 
+        # check that combined op is known
+        if (py_op and py_op not in _py_ops
+                and py_op not in _py_ops_reverse):
+            raise ValueError("unknown py_op: {}".format(py_op))
+
+        # store attributes
         self.function = function
         self.derivative = derivative
         self._name = name or function.__name__
+        self._py_op = py_op
         self._ufuncs = ufuncs or []
 
         # decorator for setting the derivative
@@ -1134,6 +1199,19 @@ class Operation(object):
     @property
     def name(self):
         return self._name
+
+    @property
+    def py_op(self):
+        if self._py_op in _py_ops:
+            return _py_ops[self._py_op]
+
+        if self._py_op in _py_ops_reverse:
+            return self._py_op
+
+        return None
+
+    def has_py_op(self):
+        return self.py_op is not None
 
     @property
     def ufuncs(self):
@@ -1150,16 +1228,23 @@ class Operation(object):
         # ensure we deal with a number instance
         num = ensure_number(num)
 
+        # all operations are designed to run on raw values (floats or NumPy arrays) so ensure we
+        # take only those from all inputs
+        if args:
+            args = tuple(map(ensure_nominal, args))
+        if kwargs:
+            kwargs = {k: ensure_nominal(v) for k, v in kwargs.items()}
+
         # apply to the nominal value
         nominal = self.function(num.nominal, *args, **kwargs)
 
         # apply to all uncertainties via
         # unc_f = derivative_f(x) * unc_x
-        x = abs(self.derivative(num.nominal, *args, **kwargs))
+        dx = abs(self.derivative(num.nominal, *args, **kwargs))
         uncertainties = {}
         for name in num.uncertainties:
             up, down = num.get_uncertainty(name)
-            uncertainties[name] = (x * up, x * down)
+            uncertainties[name] = (dx * up, dx * down)
 
         # create and return the new number
         return num.__class__(nominal, uncertainties)
@@ -1190,7 +1275,7 @@ class ops(with_metaclass(OpsMeta, object)):
     _ufuncs = {}
 
     @classmethod
-    def register(cls, function=None, name=None, ufunc=None):
+    def register(cls, function=None, name=None, py_op=None, ufuncs=None):
         """
         Registers a new math function *function* with *name* and returns an :py:class:`Operation`
         instance. A math function expects a :py:class:`Number` as its first argument, followed by
@@ -1217,23 +1302,27 @@ class ops(with_metaclass(OpsMeta, object)):
         example above as most of them are just composite operations whose derivatives are already
         known.
 
-        To comply with numpy's ufuncs (https://numpy.org/neps/nep-0013-ufunc-overrides.html) that
-        are dispatched by :py:meth:`Number.__array_ufunc__`, an operation might register the *ufunc*
-        object that it handles. When *ufunc* is a string, it is interpreted as a name of a numpy
-        function. It can also be a list to signalize that it handles more than one function.
+        When the registered operation is a member of ``operators`` and thus capable of propagating
+        uncertainties with two operands, *py_op* should be set to the symbol of the operation (e.g.
+        ``"*"``, see ``_py_ops``).
+
+        To comply with NumPy's ufuncs (https://numpy.org/neps/nep-0013-ufunc-overrides.html) that
+        are dispatched by :py:meth:`Number.__array_ufunc__`, an operation might register the
+        *ufuncs* objects that it handles. When strings, they are interpreted as a name of a NumPy
+        function.
         """
         # prepare ufuncs
-        ufuncs = []
-        if ufunc is not None:
-            for u in (ufunc if isinstance(ufunc, (list, tuple)) else [ufunc]):
+        _ufuncs = []
+        if ufuncs is not None:
+            for u in (ufuncs if isinstance(ufuncs, (list, tuple)) else [ufuncs]):
                 if isinstance(u, string_types):
                     if not HAS_NUMPY:
                         continue
                     u = getattr(np, u)
-                ufuncs.append(u)
+                _ufuncs.append(u)
 
         def register(function):
-            op = Operation(function, name=name, ufuncs=ufuncs)
+            op = Operation(function, name=name, py_op=py_op, ufuncs=_ufuncs)
 
             # save as class attribute and also in _instances
             cls._instances[op.name] = op
@@ -1297,7 +1386,7 @@ class ops(with_metaclass(OpsMeta, object)):
 # pre-registered operations
 #
 
-@ops.register(ufunc="add")
+@ops.register(py_op="+", ufuncs="add")
 def add(x, n):
     """ add(x, n)
     Addition function.
@@ -1310,7 +1399,7 @@ def add(x, n):
     return 1.0
 
 
-@ops.register(ufunc="subtract")
+@ops.register(py_op="-", ufuncs="subtract")
 def sub(x, n):
     """ sub(x, n)
     Subtraction function.
@@ -1323,7 +1412,7 @@ def sub(x, n):
     return 1.0
 
 
-@ops.register(ufunc="multiply")
+@ops.register(py_op="*", ufuncs="multiply")
 def mul(x, n):
     """ mul(x, n)
     Multiplication function.
@@ -1336,7 +1425,7 @@ def mul(x, n):
     return n
 
 
-@ops.register(ufunc="divide")
+@ops.register(py_op="/", ufuncs="divide")
 def div(x, n):
     """ div(x, n)
     Division function.
@@ -1349,7 +1438,7 @@ def div(x, n):
     return 1.0 / n
 
 
-@ops.register(ufunc="power")
+@ops.register(py_op="**", ufuncs="power")
 def pow(x, n):
     """ pow(x, n)
     Power function.
@@ -1362,7 +1451,7 @@ def pow(x, n):
     return n * x**(n - 1.0)
 
 
-@ops.register(ufunc="exp")
+@ops.register(ufuncs="exp")
 def exp(x):
     """ exp(x)
     Exponential function.
@@ -1373,7 +1462,7 @@ def exp(x):
 exp.derivative = exp.function
 
 
-@ops.register(ufunc="log")
+@ops.register(ufuncs="log")
 def log(x, base=None):
     """ log(x, base=e)
     Logarithmic function.
@@ -1381,10 +1470,7 @@ def log(x, base=None):
     _math = infer_math(x)
     if base is None:
         return _math.log(x)
-    elif _math == math:
-        return _math.log(x, base)
     else:
-        # numpy has no option to set a base
         return _math.log(x) / _math.log(base)
 
 
@@ -1396,7 +1482,7 @@ def log(x, base=None):
         return 1.0 / (x * infer_math(x).log(base))
 
 
-@ops.register(ufunc="log10")
+@ops.register(ufuncs="log10")
 def log10(x):
     """ log10(x)
     Logarithmic function with base 10.
@@ -1409,7 +1495,7 @@ def log10(x):
     return log.derivative(x, base=10.0)
 
 
-@ops.register(ufunc="log2")
+@ops.register(ufuncs="log2")
 def log2(x):
     """ log2(x)
     Logarithmic function with base 2.
@@ -1422,7 +1508,7 @@ def log2(x):
     return log.derivative(x, base=2.0)
 
 
-@ops.register(ufunc="sqrt")
+@ops.register(ufuncs="sqrt")
 def sqrt(x):
     """ sqrt(x)
     Square root function.
@@ -1435,7 +1521,7 @@ def sqrt(x):
     return 1.0 / (2.0 * infer_math(x).sqrt(x))
 
 
-@ops.register(ufunc="sin")
+@ops.register(ufuncs="sin")
 def sin(x):
     """ sin(x)
     Trigonometric sin function.
@@ -1448,7 +1534,7 @@ def sin(x):
     return infer_math(x).cos(x)
 
 
-@ops.register(ufunc="cos")
+@ops.register(ufuncs="cos")
 def cos(x):
     """ cos(x)
     Trigonometric cos function.
@@ -1461,7 +1547,7 @@ def cos(x):
     return -infer_math(x).sin(x)
 
 
-@ops.register(ufunc="tan")
+@ops.register(ufuncs="tan")
 def tan(x):
     """ tan(x)
     Trigonometric tan function.
@@ -1474,7 +1560,7 @@ def tan(x):
     return 1.0 / infer_math(x).cos(x)**2.0
 
 
-@ops.register(ufunc="arcsin")
+@ops.register(ufuncs="arcsin")
 def asin(x):
     """ asin(x)
     Trigonometric arc sin function.
@@ -1491,7 +1577,7 @@ def asin(x):
     return 1.0 / infer_math(x).sqrt(1 - x**2.0)
 
 
-@ops.register(ufunc="arccos")
+@ops.register(ufuncs="arccos")
 def acos(x):
     """ acos(x)
     Trigonometric arc cos function.
@@ -1508,7 +1594,7 @@ def acos(x):
     return -1.0 / infer_math(x).sqrt(1 - x**2.0)
 
 
-@ops.register(ufunc="arctan")
+@ops.register(ufuncs="arctan")
 def atan(x):
     """ tan(x)
     Trigonometric arc tan function.
@@ -1525,7 +1611,7 @@ def atan(x):
     return 1.0 / (1.0 + x**2.0)
 
 
-@ops.register(ufunc="sinh")
+@ops.register(ufuncs="sinh")
 def sinh(x):
     """ sinh(x)
     Hyperbolic sin function.
@@ -1538,7 +1624,7 @@ def sinh(x):
     return infer_math(x).cosh(x)
 
 
-@ops.register(ufunc="cosh")
+@ops.register(ufuncs="cosh")
 def cosh(x):
     """ cosh(x)
     Hyperbolic cos function.
@@ -1551,7 +1637,7 @@ def cosh(x):
     return infer_math(x).sinh(x)
 
 
-@ops.register(ufunc="tanh")
+@ops.register(ufuncs="tanh")
 def tanh(x):
     """ tanh(x)
     Hyperbolic tan function.
@@ -1564,7 +1650,7 @@ def tanh(x):
     return 1.0 / infer_math(x).cosh(x)**2.0
 
 
-@ops.register(ufunc="arcsinh")
+@ops.register(ufuncs="arcsinh")
 def asinh(x):
     """ asinh(x)
     Hyperbolic arc sin function.
@@ -1576,7 +1662,7 @@ def asinh(x):
         return _math.arcsinh(x)
 
 
-@ops.register(ufunc="arccosh")
+@ops.register(ufuncs="arccosh")
 def acosh(x):
     """ acosh(x)
     Hyperbolic arc cos function.
@@ -1592,7 +1678,7 @@ asinh.derivative = acosh.function
 acosh.derivative = asinh.function
 
 
-@ops.register(ufunc="arctanh")
+@ops.register(ufuncs="arctanh")
 def atanh(x):
     """ atanh(x)
     Hyperbolic arc tan function.
@@ -1699,53 +1785,6 @@ def make_list(obj, cast=True):
         return [obj]
 
 
-def split_value(val):
-    """
-    Splits a value *val* into its significand and decimal exponent (magnitude) and returns them in a
-    2-tuple. *val* might also be a numpy array. Example:
-
-    .. code-block:: python
-
-        split_value(1)     # -> (1.0, 0)
-        split_value(0.123) # -> (1.23, -1)
-        split_value(-42.5) # -> (-4.25, 1)
-
-        a = np.array([1, 0.123, -42.5])
-        split_value(a) # -> ([1.0, 1.23, -4.25], [0, -1, 1])
-
-    The significand will be a float while magnitude will be an integer. *val* can be reconstructed
-    via ``significand * 10**magnitude``.
-    """
-    val = ensure_nominal(val)
-
-    if not is_numpy(val):
-        # handle 0 separately
-        if val == 0:
-            return (0.0, 0)
-
-        mag = int(math.floor(math.log10(abs(val))))
-        sig = float(val) / (10.0**mag)
-
-    else:
-        log = np.zeros(val.shape)
-        np.log10(np.abs(val), out=log, where=(val != 0))
-        mag = np.floor(log).astype(int)
-        sig = val.astype(float) / (10.0**mag)
-
-    return (sig, mag)
-
-
-_op_map = {
-    "+": operator.add,
-    "-": operator.sub,
-    "*": operator.mul,
-    "/": operator.truediv,
-    "**": operator.pow,
-}
-
-_op_map_reverse = dict(zip(_op_map.values(), _op_map.keys()))
-
-
 def calculate_uncertainty(terms, rho=0.0):
     """
     Generically calculates the uncertainty of a quantity that depends on multiple *terms*. Each term
@@ -1773,10 +1812,10 @@ def calculate_uncertainty(terms, rho=0.0):
         # no rho value defined for pair (0, 1), assumes zero correlation
         # -> 2.5
     """
-    # sum over squaresall single terms
+    # sum over squares of all single terms
     variance = sum((derivative * uncertainty)**2.0 for derivative, uncertainty in terms)
 
-    # add second order terms of all pairs
+    # add second order terms of all pairs if they are correlated
     for i in range(len(terms) - 1):
         for j in range(i + 1, len(terms)):
             _rho = rho.get((i, j), 0.0) if isinstance(rho, dict) else rho
@@ -1792,12 +1831,16 @@ def combine_uncertainties(op, unc1, unc2, nom1=None, nom2=None, rho=0.0):
     also pass the nominal values *nom1* and *nom2*, respectively. The correlation can be configured
     via *rho*.
     """
+    # handle Operation instances
+    if isinstance(op, Operation) and op.has_py_op():
+        op = op.py_op
+
     # operator valid?
-    if op in _op_map:
-        f = _op_map[op]
-    elif op in _op_map_reverse:
+    if op in _py_ops:
+        f = _py_ops[op]
+    elif op in _py_ops_reverse:
         f = op
-        op = _op_map_reverse[op]
+        op = _py_ops_reverse[op]
     else:
         raise ValueError("unknown operator: {}".format(op))
 
@@ -1849,6 +1892,42 @@ def combine_uncertainties(op, unc1, unc2, nom1=None, nom2=None, rho=0.0):
         if op in ("-", "/"):
             rho = -rho
         return nom * (unc1**2.0 + unc2**2.0 + 2.0 * rho * unc1 * unc2)**0.5
+
+
+def split_value(val):
+    """
+    Splits a value *val* into its significand and decimal exponent (magnitude) and returns them in a
+    2-tuple. *val* might also be a numpy array. Example:
+
+    .. code-block:: python
+
+        split_value(1)     # -> (1.0, 0)
+        split_value(0.123) # -> (1.23, -1)
+        split_value(-42.5) # -> (-4.25, 1)
+
+        a = np.array([1, 0.123, -42.5])
+        split_value(a) # -> ([1.0, 1.23, -4.25], [0, -1, 1])
+
+    The significand will be a float while magnitude will be an integer. *val* can be reconstructed
+    via ``significand * 10**magnitude``.
+    """
+    val = ensure_nominal(val)
+
+    if not is_numpy(val):
+        # handle 0 separately
+        if val == 0:
+            return (0.0, 0)
+
+        mag = int(math.floor(math.log10(abs(val))))
+        sig = float(val) / (10.0**mag)
+
+    else:
+        log = np.zeros(val.shape)
+        np.log10(np.abs(val), out=log, where=(val != 0))
+        mag = np.floor(log).astype(int)
+        sig = val.astype(float) / (10.0**mag)
+
+    return (sig, mag)
 
 
 def _match_precision(val, ref, **kwargs):
