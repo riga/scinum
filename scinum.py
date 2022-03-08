@@ -2344,6 +2344,13 @@ def create_hep_data_representer(method=None, force_asymmetric=False, force_float
     <https://hepdata-submission.readthedocs.io/en/latest/data_yaml.html>`_ format for values in data
     files.
 
+    .. code-block:: python
+
+        import yaml
+        import scinum as sn
+
+        yaml.add_representer(sn.Number, sn.create_hep_data_representer())
+
     For documentation of the rounding *method*, see :py:func:`round_uncertainty`. When *None*, the
     *default_format* of the number instance is used in case it is not a python format string.
     Otherwise ``"pdg+1"`` is assumed. When the up and down of an uncertainty are identical after
