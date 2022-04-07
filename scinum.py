@@ -13,7 +13,7 @@ __credits__ = ["Marcel Rieger"]
 __contact__ = "https://github.com/riga/scinum"
 __license__ = "BSD-3-Clause"
 __status__ = "Development"
-__version__ = "1.4.0"
+__version__ = "1.4.1"
 __all__ = [
     "Number", "Correlation", "DeferredResult", "Operation",
     "ops", "style_dict",
@@ -994,6 +994,9 @@ class Number(object):
             raise NotImplementedError
 
         return self.mul(other, inplace=False)
+
+    def __rmatmul__(self, other):
+        return self.__matmul__(other)
 
     def __imul__(self, other):
         return self.mul(other, inplace=True)
@@ -2353,10 +2356,10 @@ def create_hep_data_representer(method=None, force_asymmetric=False, force_float
 
     For documentation of the rounding *method*, see :py:func:`round_uncertainty`. When *None*, the
     *default_format* of the number instance is used in case it is not a python format string.
-    Otherwise ``"pdg+1"`` is assumed. When the up and down of an uncertainty are identical after
-    rounding, they are encoded as symmetric unless *force_asymmetric* is *True*. Also, when all
-    decimal digits are removed during rounding, the final value is encoded as an integer unless
-    *force_float* is *True*.
+    Otherwise ``"pdg+1"`` is assumed. When the up and down variations of an uncertainty are
+    identical after rounding, they are encoded as a symmetric uncertainty unless *force_asymmetric*
+    is *True*. Also, when all decimal digits are removed during rounding, the final value is encoded
+    as an integer value unless *force_float* is *True*.
 
     All remaining *kwargs* are forwarded to :py:func:`match_precision` which is performing the
     rounding internally.
