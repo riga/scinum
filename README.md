@@ -153,7 +153,7 @@ print(num)  # -> '7.5 +- 1.80277563773'
 
 ###### Math operations
 
-As a drop-in replacement for the `math` module, scinum provides an object `ops` that contains math operations that are aware of guassian error propagation.
+As a drop-in replacement for the `math` module, scinum provides an object `ops` that contains math operations that are aware of gaussian error propagation.
 
 ```python
 from scinum import Number, ops
