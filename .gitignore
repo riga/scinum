@@ -10,3 +10,5 @@ MANIFEST
 build
 docs/_build
 .ipynb_checkpoints
+.coverage
+coverage*.xml

@@ -130,7 +130,7 @@ class typed(property):
             property.__init__(self,
                 functools.wraps(fparse)(self._fget(m_name)),
                 self._fset(m_name) if setter else None,
-                self._fdel(m_name) if deleter else None
+                self._fdel(m_name) if deleter else None,
             )
 
     def __call__(self, fparse):
@@ -2318,7 +2318,7 @@ def round_value(val, unc=None, method=0, align_precision=True, **kwargs):
 
 si_refixes = dict(zip(
     range(-18, 18 + 1, 3),
-    ["a", "f", "p", "n", r"\mu", "m", "", "k", "M", "G", "T", "P", "E"]
+    ["a", "f", "p", "n", r"\mu", "m", "", "k", "M", "G", "T", "P", "E"],
 ))
 
 

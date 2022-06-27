@@ -9,15 +9,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout 🛎️
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           persist-credentials: false
 
       - name: Install dependencies ☕️
         run: |
           pip install -U pip
-          pip install -r requirements.txt
-          pip install flake8
+          pip install -r requirements_test.txt
 
       - name: Lint 🔍
         run: flake8 scinum.py tests setup.py
@@ -26,14 +25,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout 🛎️
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           persist-credentials: false
 
       - name: Setup python 🐍
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
-          python-version: 3.8
+          python-version: 3.9
 
       - name: Install dependencies ☕️
         run: |
@@ -55,22 +54,51 @@ jobs:
           - "3.6"
           - "3.8"
           - "3.9"
+          - "3.10"
     name: test (python ${{ matrix.python-version }})
     steps:
       - name: Checkout 🛎️
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           persist-credentials: false
 
       - name: Setup Python ${{ matrix.python-version }} 🐍
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
 
       - name: Install dependencies ☕️
         run: |
           pip install -U pip
-          pip install -r requirements.txt
+          pip install -r requirements_test.txt
 
       - name: Test 🎢
         run: python -m unittest tests
+
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout 🛎️
+        uses: actions/checkout@v3
+        with:
+          persist-credentials: false
+
+      - name: Setup python 🐍
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.9
+
+      - name: Install dependencies ☕️
+        run: |
+          pip install -U pip
+          pip install -r requirements_test.txt
+
+      - name: Run coverage test 🎢
+        run: pytest --cov=scinum --cov-report xml:coverage.xml tests
+
+      - name: Upload report 🔝
+        uses: codecov/codecov-action@v2
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage.xml
+          flags: unittests
