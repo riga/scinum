@@ -1,6 +1,11 @@
 ![scinum logo](https://raw.githubusercontent.com/riga/scinum/master/logo250.png "scinum logo")
 
-[![Lint and test](https://github.com/riga/scinum/actions/workflows/lint_and_test.yml/badge.svg)](https://github.com/riga/scinum/actions/workflows/lint_and_test.yml) [![Documentation Status](https://readthedocs.org/projects/scinum/badge/?version=latest)](http://scinum.readthedocs.org/en/latest/?badge=latest) [![Package Status](https://img.shields.io/pypi/v/scinum.svg?style=flat)](https://pypi.python.org/pypi/scinum) [![License](https://img.shields.io/github/license/riga/scinum.svg)](https://github.com/riga/scinum/blob/master/LICENSE) [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/riga/scinum/master?filepath=example.ipynb)
+[![Lint and test](https://github.com/riga/scinum/actions/workflows/lint_and_test.yml/badge.svg)](https://github.com/riga/scinum/actions/workflows/lint_and_test.yml)
+[![Documentation Status](https://readthedocs.org/projects/scinum/badge/?version=latest)](http://scinum.readthedocs.org/en/latest/?badge=latest)
+[![Cover coverage](https://codecov.io/gh/riga/scinum/branch/master/graph/badge.svg?token=bvykpaUaHQ)](https://codecov.io/gh/riga/scinum)
+[![Package Status](https://img.shields.io/pypi/v/scinum.svg?style=flat)](https://pypi.python.org/pypi/scinum)
+[![License](https://img.shields.io/github/license/riga/scinum.svg)](https://github.com/riga/scinum/blob/master/LICENSE)
+[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/riga/scinum/master?filepath=example.ipynb)
 
 scinum provides a simple `Number` class that wraps plain floats or [NumPy](http://www.numpy.org/) arrays and adds support for multiple uncertainties, automatic (gaussian) error propagation, and scientific rounding.
 
@@ -46,12 +51,12 @@ print(num(DOWN))              # -> 4.0 (down shift, shorthand)
 from scinum import Number, ABS, REL
 
 num = Number(2.5, {
-    "sourceA": 0.5,                  # absolute 0.5, both up and down
-    "sourceB": (1.0, 1.5),           # absolute 1.0 up, 1.5 down
-    "sourceC": (REL, 0.1),           # relative 10%, both up and down
-    "sourceD": (REL, 0.1, 0.2),      # relative 10% up, 20% down
-    "sourceE": (1.0, REL, 0.2),      # absolute 1.0 up, relative 20% down
-    "sourceF": (REL, 0.3, ABS, 0.3)  # relative 30% up, absolute 0.3 down
+    "sourceA": 0.5,                   # absolute 0.5, both up and down
+    "sourceB": (1.0, 1.5),            # absolute 1.0 up, 1.5 down
+    "sourceC": (REL, 0.1),            # relative 10%, both up and down
+    "sourceD": (REL, 0.1, 0.2),       # relative 10% up, 20% down
+    "sourceE": (1.0, REL, 0.2),       # absolute 1.0 up, relative 20% down
+    "sourceF": (REL, 0.3, ABS, 0.3),  # relative 30% up, absolute 0.3 down
 })
 ```
 
