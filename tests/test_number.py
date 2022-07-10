@@ -238,6 +238,9 @@ class TestCase(unittest.TestCase):
             self.assertEqual(self.num.get(UP, name, unc=True, factor=True), unc[0] / nom)
             self.assertEqual(self.num.get(DOWN, name, unc=True, factor=True), unc[1] / nom)
 
+            self.assertEqual(self.num.get((UP, DOWN), name, unc=True, factor=True),
+                (unc[0] / nom, unc[1] / nom))
+
     @if_numpy
     def test_uncertainty_combination_numpy(self):
         num = Number(np.array([2, 4, 6]), 2)

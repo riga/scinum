@@ -29,7 +29,6 @@ import operator
 import types
 import decimal
 from collections import defaultdict, OrderedDict
-import warnings
 
 # optional imports
 try:
@@ -204,6 +203,7 @@ class Number(object):
         num(DOWN, "sourceB")             # => 1.0
         num(UP, ("sourceC", "sourceD"))  # => 2.854...
         num(UP)                          # => 4.214... (all uncertainties)
+        num((UP, DOWN), "sourceA")       # => (3.0, 2.0)
 
         # get only the uncertainty (unsigned)
         num(DOWN, ("sourceE", "sourceF"), unc=True)  # => 0.583...
@@ -678,18 +678,20 @@ class Number(object):
             uncertainties = self.uncertainties
         return self.__class__(nominal, uncertainties=uncertainties)
 
-    def get(self, direction=NOMINAL, names=ALL, unc=False, factor=False, diff=None):
+    def get(self, direction=NOMINAL, names=ALL, unc=False, factor=False):
         """ get(direction=NOMINAL, names=ALL, unc=False, factor=False)
         Returns different representations of the contained value(s). *direction* should be any of
-        *NOMINAL*, *UP* or *DOWN*. When not *NOMINAL*, *names* decides which uncertainties to take
-        into account for the combination. When *unc* is *True*, only the unsigned, combined
-        uncertainty is returned. When *False*, the nominal value plus or minus the uncertainty is
-        returned. When *factor* is *True*, the ratio w.r.t. the nominal value is returned.
+        *NOMINAL*, *UP* or *DOWN*, or a tuple containing a combination of them. When not *NOMINAL*,
+        *names* decides which uncertainties to take into account for the combination. When *unc* is
+        *True*, only the unsigned, combined uncertainty is returned. When *False*, the nominal value
+        plus or minus the uncertainty is returned. When *factor* is *True*, the ratio w.r.t. the
+        nominal value is returned.
         """
-        if diff is not None:
-            warnings.warn(message="the 'diff' argument is deprecated and will be removed in future "
-                "versions, please us 'unc' instead", category=DeprecationWarning)
-            unc = diff
+        if isinstance(direction, tuple) and all(d in (NOMINAL, UP, DOWN) for d in direction):
+            return tuple(
+                self.get(direction=d, names=names, unc=unc, factor=factor)
+                for d in direction
+            )
 
         if direction == self.NOMINAL:
             value = self.nominal
