@@ -5,6 +5,7 @@
 [![Cover coverage](https://codecov.io/gh/riga/scinum/branch/master/graph/badge.svg?token=bvykpaUaHQ)](https://codecov.io/gh/riga/scinum)
 [![Package Status](https://img.shields.io/pypi/v/scinum.svg?style=flat)](https://pypi.python.org/pypi/scinum)
 [![License](https://img.shields.io/github/license/riga/scinum.svg)](https://github.com/riga/scinum/blob/master/LICENSE)
+[![PyPI downloads](https://img.shields.io/pypi/dm/scinum.svg)](https://pypi.python.org/pypi/scinum)
 [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/riga/scinum/master?filepath=example.ipynb)
 
 scinum provides a simple `Number` class that wraps plain floats or [NumPy](http://www.numpy.org/) arrays and adds support for multiple uncertainties, automatic (gaussian) error propagation, and scientific rounding.
