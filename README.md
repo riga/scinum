@@ -6,7 +6,6 @@
 [![Package Status](https://img.shields.io/pypi/v/scinum.svg?style=flat)](https://pypi.python.org/pypi/scinum)
 [![License](https://img.shields.io/github/license/riga/scinum.svg)](https://github.com/riga/scinum/blob/master/LICENSE)
 [![PyPI downloads](https://img.shields.io/pypi/dm/scinum.svg)](https://pypi.python.org/pypi/scinum)
-[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/riga/scinum/master?filepath=example.ipynb)
 
 scinum provides a simple `Number` class that wraps plain floats or [NumPy](http://www.numpy.org/) arrays and adds support for multiple uncertainties, automatic (gaussian) error propagation, and scientific rounding.
 
@@ -48,7 +47,7 @@ print(num(DOWN))              # -> 4.0 (down shift, shorthand)
 
 ###### Multiple uncertainties
 
-Use single values to denote symmatric uncertainties, and tuples for asymmetric ones.
+Use single values to denote symmetric uncertainties, and tuples for asymmetric ones.
 Float values refer to absolute values whereas complex numbers (only their imaginary part) define relative effects.
 
 ```python
@@ -61,7 +60,7 @@ num = Number(2.5, {
     "sourceD": (0.1j, 0.2j),     # relative 10% up, relative 20% down
     "sourceE": (1.0, 0.2j),      # absolute 1.0 up, relative 20% down
     "sourceF": (0.3j, 0.3),      # relative 30% up, absolute 0.3 down
-    # examples using the old 'marker' syntax
+    # the old 'marker' syntax
     "sourceG": (REL, 0.1, 0.2),       # relative 10% up, relative 20% down
     "sourceH": (REL, 0.1, ABS, 0.2),  # relative 10% up, absolute 0.2 down
 })
