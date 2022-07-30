@@ -166,21 +166,37 @@ class typed(property):
 class Number(object):
     """ __init__(nominal=0.0, uncertainties={})
     Implementation of a scientific number, i.e., a *nominal* value with named *uncertainties*.
-    *uncertainties* mist be a dict or convertable to a dict with strings as keys. If a value is an
-    int or float, it is interpreted as an absolute, symmetric uncertainty. If it is a tuple, it is
-    interpreted in different ways. Examples:
+    *uncertainties* should be a dict or convertable to a dict with strings as keys, and the
+    corresponding uncertainties as values. Whereas different formats are accepted for values to
+    denote whether the passed value is relative or absolute, it should be noted that after some
+    initial parsing, they are always stored as absolute numbers represented by floats internally.
+
+    Uncertainty values can be normal floats to denote absolute, or a complex number to denote
+    relative values. In the latter case, only the imaginary part is used, meaning that one only
+    needs to append the complex ``j`` (e.g. ``0.3j`` for a 30% effect). Asymmetric uncertainties can
+    be defined by passing a 2-tuple of the above values, describing the up and down effect.
+
+    In previous versions of scinum, relative uncertainties could only be denoted using a marker-like
+    syntax, using the :py:attr:`REL` and :py:attr:`ABS` flags. This format is still supported as it
+    avoids copying values (e.g. large NumPy arrays) to make them complex. However, the complex
+    number syntax is recommended in all other scenarios.
+
+    Examples:
 
     .. code-block:: python
 
         from scinum import Number, REL, ABS, UP, DOWN
 
         num = Number(2.5, {
-            "sourceA": 0.5,                  # absolute 0.5, both up and down
-            "sourceB": (1.0, 1.5),           # absolute 1.0 up, 1.5 down
-            "sourceC": (REL, 0.1),           # relative 10%, both up and down
-            "sourceD": (REL, 0.1, 0.2),      # relative 10% up, 20% down
-            "sourceE": (1.0, REL, 0.2),      # absolute 1.0 up, relative 20% down
-            "sourceF": (REL, 0.3, ABS, 0.3)  # relative 30% up, absolute 0.3 down
+            "sourceA": 0.5,              # absolute 0.5, both up and down
+            "sourceB": (1.0, 1.5),       # absolute 1.0 up, 1.5 down
+            "sourceC": 0.1j,             # relative 10%, both up and down
+            "sourceD": (0.1j, 0.2j),     # relative 10% up, relative 20% down
+            "sourceE": (1.0, 0.2j),      # absolute 1.0 up, relative 20% down
+            "sourceF": (0.3j, 0.3),      # relative 30% up, absolute 0.3 down
+            # examples using the old 'marker' syntax
+            "sourceG": (REL, 0.1, 0.2),       # relative 10% up, relative 20% down
+            "sourceH": (REL, 0.1, ABS, 0.2),  # relative 10% up, absolute 0.2 down
         })
 
         # get the nominal value via direct access
@@ -411,7 +427,7 @@ class Number(object):
                 raise TypeError("invalid uncertainty name: {}".format(name))
 
             # parse the value type
-            if isinstance(val, (int, float)) or is_numpy(val):
+            if isinstance(val, (int, float, complex)) or is_numpy(val):
                 val = (val, val)
             elif isinstance(val, list):
                 val = tuple(val)
@@ -421,12 +437,18 @@ class Number(object):
             # parse the value itself
             utype, up, down = self.ABS, None, None
             for v in val:
-                # check if the uncertainty type is changed
+                # check if v changes the uncertainty type for subsequent values
                 if isinstance(v, string_types):
                     if v not in (self.ABS, self.REL):
                         raise ValueError("unknown uncertainty type: {}".format(v))
                     utype = v
                     continue
+
+                # interpret complex numbers as relative uncertainties
+                _utype = utype
+                if isinstance(v, complex):
+                    _utype = self.REL
+                    v = v.imag
 
                 # parse the value
                 if isinstance(v, (int, float)):
@@ -443,7 +465,7 @@ class Number(object):
                     raise TypeError("invalid uncertainty value: {}".format(v))
 
                 # convert to abs
-                if utype == self.REL:
+                if _utype == self.REL:
                     v *= self.nominal
 
                 # store the value

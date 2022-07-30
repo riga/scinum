@@ -50,6 +50,7 @@ class TestCase(unittest.TestCase):
             "E": (Number.REL, 0.1, 0.2),
             "F": (1.0, Number.REL, 0.2),
             "G": (Number.REL, 0.3, Number.ABS, 0.3),
+            "H": (0.3j, 0.3),
         })
 
     def test_constructor(self):
@@ -146,19 +147,19 @@ class TestCase(unittest.TestCase):
         self.assertEqual(num.u(direction=UP).shape, (3,))
 
     def test_string_formats(self):
-        self.assertEqual(len(self.num.str()), 91)
-        self.assertEqual(len(self.num.str("%.3f")), 112)
-        self.assertEqual(len(self.num.str(lambda n: "%s" % n)), 91)
-        self.assertEqual(len(self.num.str(lambda n: "X%s" % n)), 103)
-        self.assertEqual(len(self.num.repr().split(" ", 3)[-1]), 94)
-        self.assertEqual(len(self.num.str(2)), 100)
-        self.assertEqual(len(self.num.str(3)), 112)
-        self.assertEqual(len(self.num.str(4)), 124)
-        self.assertEqual(len(self.num.str(-1)), 88)
-        self.assertEqual(len(self.num.str("pub")), 112)
-        self.assertEqual(len(self.num.str("publication")), 112)
-        self.assertEqual(len(self.num.str("pdg")), 100)
-        self.assertEqual(len(self.num.str("pdg+1")), 112)
+        self.assertEqual(len(self.num.str()), 105)
+        self.assertEqual(len(self.num.str("%.3f")), 129)
+        self.assertEqual(len(self.num.str(lambda n: "%s" % n)), 105)
+        self.assertEqual(len(self.num.str(lambda n: "X%s" % n)), 119)
+        self.assertEqual(len(self.num.repr().split(" ", 3)[-1]), 108)
+        self.assertEqual(len(self.num.str(2)), 115)
+        self.assertEqual(len(self.num.str(3)), 129)
+        self.assertEqual(len(self.num.str(4)), 143)
+        self.assertEqual(len(self.num.str(-1)), 101)
+        self.assertEqual(len(self.num.str("pub")), 129)
+        self.assertEqual(len(self.num.str("publication")), 129)
+        self.assertEqual(len(self.num.str("pdg")), 115)
+        self.assertEqual(len(self.num.str("pdg+1")), 129)
 
         with self.assertRaises(ValueError):
             self.num.str("foo")
@@ -191,7 +192,7 @@ class TestCase(unittest.TestCase):
 
     def test_uncertainty_parsing(self):
         uncs = {}
-        for name in "ABCDEFG":
+        for name in "ABCDEFGH":
             unc = uncs[name] = self.num.get_uncertainty(name)
 
             self.assertIsInstance(unc, tuple)
@@ -204,16 +205,19 @@ class TestCase(unittest.TestCase):
         self.assertEqual(uncs["E"], (0.25, 0.5))
         self.assertEqual(uncs["F"], (1.0, 0.5))
         self.assertEqual(uncs["G"], (0.75, 0.3))
+        self.assertEqual(uncs["H"], (0.75, 0.3))
 
         num = self.num.copy()
-        num.set_uncertainty("H", (Number.REL, 0.5, Number.ABS, 0.5))
-        self.assertEqual(num.get_uncertainty("H"), (1.25, 0.5))
+        num.set_uncertainty("I", (Number.REL, 0.5, Number.ABS, 0.5))
+        self.assertEqual(num.get_uncertainty("I"), (1.25, 0.5))
+        num.set_uncertainty("J", (0.5j, 0.5))
+        self.assertEqual(num.get_uncertainty("J"), (1.25, 0.5))
 
     def test_uncertainty_combination(self):
         nom = self.num.nominal
 
-        allUp = ptgr(0.5, 1.0, 1.0, 0.25, 0.25, 1.0, 0.75)
-        allDown = ptgr(0.5, 1.0, 1.5, 0.25, 0.5, 0.5, 0.3)
+        allUp = ptgr(0.5, 1.0, 1.0, 0.25, 0.25, 1.0, 0.75, 0.75)
+        allDown = ptgr(0.5, 1.0, 1.5, 0.25, 0.5, 0.5, 0.3, 0.3)
         self.assertEqual(self.num.get(UP), nom + allUp)
         self.assertEqual(self.num.get(DOWN), nom - allDown)
 
@@ -221,7 +225,7 @@ class TestCase(unittest.TestCase):
         self.assertEqual(self.num.get(DOWN, ("B", "C")), nom - ptgr(1, 1.5))
         self.assertEqual(self.num.get(DOWN), nom - allDown)
 
-        for name in "ABCDEFG":
+        for name in "ABCDEFGH":
             unc = self.num.get_uncertainty(name)
 
             self.assertEqual(self.num.get(names=name), nom)

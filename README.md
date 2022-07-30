@@ -48,16 +48,22 @@ print(num(DOWN))              # -> 4.0 (down shift, shorthand)
 
 ###### Multiple uncertainties
 
+Use single values to denote symmatric uncertainties, and tuples for asymmetric ones.
+Float values refer to absolute values whereas complex numbers (only their imaginary part) define relative effects.
+
 ```python
 from scinum import Number, ABS, REL
 
 num = Number(2.5, {
-    "sourceA": 0.5,                   # absolute 0.5, both up and down
-    "sourceB": (1.0, 1.5),            # absolute 1.0 up, 1.5 down
-    "sourceC": (REL, 0.1),            # relative 10%, both up and down
-    "sourceD": (REL, 0.1, 0.2),       # relative 10% up, 20% down
-    "sourceE": (1.0, REL, 0.2),       # absolute 1.0 up, relative 20% down
-    "sourceF": (REL, 0.3, ABS, 0.3),  # relative 30% up, absolute 0.3 down
+    "sourceA": 0.5,              # absolute 0.5, both up and down
+    "sourceB": (1.0, 1.5),       # absolute 1.0 up, 1.5 down
+    "sourceC": 0.1j,             # relative 10%, both up and down
+    "sourceD": (0.1j, 0.2j),     # relative 10% up, relative 20% down
+    "sourceE": (1.0, 0.2j),      # absolute 1.0 up, relative 20% down
+    "sourceF": (0.3j, 0.3),      # relative 30% up, absolute 0.3 down
+    # examples using the old 'marker' syntax
+    "sourceG": (REL, 0.1, 0.2),       # relative 10% up, relative 20% down
+    "sourceH": (REL, 0.1, ABS, 0.2),  # relative 10% up, absolute 0.2 down
 })
 ```
 
@@ -199,7 +205,7 @@ Please note that there is no need to register *simple* functions like in the par
 ###### NumPy arrays
 
 ```python
-from scinum import Number, ABS, REL
+from scinum import Number, REL
 import numpy as np
 
 num = Number(np.array([3, 4, 5]), 2)
@@ -209,7 +215,7 @@ print(num)
 # - [ 2.  2.  2.]
 
 num = Number(np.array([3, 4, 5]), {
-    "sourceA": (np.array([0.1, 0.2, 0.3]), REL, 0.5)  # absolute values for up, 50% down
+    "sourceA": (np.array([0.1, 0.2, 0.3]), REL, 0.5),  # absolute values for up, 50% down
 })
 print(num)
 # [ 3.  4.  5.]
