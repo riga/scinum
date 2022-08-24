@@ -1,7 +1,7 @@
 scinum
 ======
 
-.. centered:: This page contains only API docs. For more info, visit `scinum on GitHub <https://github.com/riga/scinum>`_ or open the `example.ipynb <https://github.com/riga/scinum/blob/master/example.ipynb>`__ notebook on binder: |binder|
+.. centered:: This page contains only API docs. For more info, visit `scinum on GitHub <https://github.com/riga/scinum>`_ or open the `example.ipynb <https://github.com/riga/scinum/blob/master/example.ipynb>`__ notebook on colab or binder: |colab| |binder|
 
 .. contents::
 
@@ -215,6 +215,10 @@ Other attributes
 
    Shorthand for :py:attr:`Number.ABS`.
 
+
+.. |colab| image:: https://colab.research.google.com/assets/colab-badge.svg
+   :target: https://colab.research.google.com/github/riga/scinum/blob/master/example.ipynb
+   :alt: Open in colab
 
 .. |binder| image:: https://mybinder.org/badge_logo.svg
    :target: https://mybinder.org/v2/gh/riga/scinum/master?filepath=example.ipynb
