@@ -206,7 +206,7 @@ Please note that there is no need to register *simple* functions like in the par
 ###### NumPy arrays
 
 ```python
-from scinum import Number, REL
+from scinum import Number
 import numpy as np
 
 num = Number(np.array([3, 4, 5]), 2)
@@ -216,7 +216,7 @@ print(num)
 # - [ 2.  2.  2.]
 
 num = Number(np.array([3, 4, 5]), {
-    "sourceA": (np.array([0.1, 0.2, 0.3]), REL, 0.5),  # absolute values for up, 50% down
+    "sourceA": (np.array([0.1, 0.2, 0.3]), 0.5j),  # absolute values for up, 50% down
 })
 print(num)
 # [ 3.  4.  5.]
