@@ -13,7 +13,7 @@ __credits__ = ["Marcel Rieger"]
 __contact__ = "https://github.com/riga/scinum"
 __license__ = "BSD-3-Clause"
 __status__ = "Development"
-__version__ = "1.4.3"
+__version__ = "1.4.4"
 __all__ = [
     "Number", "Correlation", "DeferredResult", "Operation",
     "ops", "style_dict",
@@ -501,8 +501,8 @@ class Number(object):
 
         if direction is None:
             return unc
-        else:
-            return unc[0 if direction == self.UP else 1]
+
+        return unc[0 if direction == self.UP else 1]
 
     def u(self, *args, **kwargs):
         """
@@ -932,10 +932,11 @@ class Number(object):
                 return np.equal(self.nominal, other)
             except ValueError:
                 return False
-        elif self.is_numpy or is_numpy(other):
+
+        if self.is_numpy or is_numpy(other):
             return (self.nominal == other).all()
-        else:
-            return self.nominal == other
+
+        return self.nominal == other
 
     def __ne__(self, other):
         # opposite of __eq__
@@ -975,6 +976,7 @@ class Number(object):
             nominal = abs(self.nominal)
         else:
             nominal = np.abs(self.nominal)
+
         return self.copy(nominal=nominal)
 
     def __add__(self, other):
@@ -983,8 +985,8 @@ class Number(object):
     def __radd__(self, other):
         if isinstance(other, DeferredResult):
             return other.number.add(self, rho=other.correlation, inplace=False)
-        else:
-            return ensure_number(other).add(self, inplace=False)
+
+        return ensure_number(other).add(self, inplace=False)
 
     def __iadd__(self, other):
         return self.add(other, inplace=True)
@@ -995,8 +997,8 @@ class Number(object):
     def __rsub__(self, other):
         if isinstance(other, DeferredResult):
             return other.number.sub(self, rho=other.correlation, inplace=False)
-        else:
-            return ensure_number(other).sub(self, inplace=False)
+
+        return ensure_number(other).sub(self, inplace=False)
 
     def __isub__(self, other):
         return self.sub(other, inplace=True)
@@ -1007,10 +1009,11 @@ class Number(object):
     def __rmul__(self, other):
         if isinstance(other, Correlation):
             return self.mul(other, inplace=False)
-        elif isinstance(other, DeferredResult):
+
+        if isinstance(other, DeferredResult):
             return other.number.mul(self, rho=other.correlation, inplace=False)
-        else:
-            return ensure_number(other).mul(self, inplace=False)
+
+        return ensure_number(other).mul(self, inplace=False)
 
     def __matmul__(self, other):
         # only supported for correlations
@@ -1031,8 +1034,8 @@ class Number(object):
     def __rdiv__(self, other):
         if isinstance(other, DeferredResult):
             return other.number.rdiv(self, rho=other.correlation, inplace=False)
-        else:
-            return ensure_number(other).div(self, inplace=False)
+
+        return ensure_number(other).div(self, inplace=False)
 
     def __idiv__(self, other):
         return self.div(other, inplace=True)
@@ -1043,8 +1046,8 @@ class Number(object):
     def __rtruediv__(self, other):
         if isinstance(other, DeferredResult):
             return other.number.div(self, rho=other.correlation, inplace=False)
-        else:
-            return ensure_number(other).div(self, inplace=False)
+
+        return ensure_number(other).div(self, inplace=False)
 
     def __itruediv__(self, other):
         return self.div(other, inplace=True)
@@ -1055,8 +1058,8 @@ class Number(object):
     def __rpow__(self, other):
         if isinstance(other, DeferredResult):
             return other.number.rpow(self, rho=other.correlation, inplace=False)
-        else:
-            return ensure_number(other).pow(self, inplace=False)
+
+        return ensure_number(other).pow(self, inplace=False)
 
     def __ipow__(self, other):
         return self.pow(other, inplace=True)
@@ -1362,8 +1365,8 @@ class ops(with_metaclass(OpsMeta, object)):
 
         if function is None:
             return register
-        else:
-            return register(function)
+
+        return register(function)
 
     @classmethod
     def get_operation(cls, name):
@@ -1496,16 +1499,14 @@ def log(x, base=None):
     _math = infer_math(x)
     if base is None:
         return _math.log(x)
-    else:
-        return _math.log(x) / _math.log(base)
+    return _math.log(x) / _math.log(base)
 
 
 @log.derive
 def log(x, base=None):
     if base is None:
         return 1.0 / x
-    else:
-        return 1.0 / (x * infer_math(x).log(base))
+    return 1.0 / (x * infer_math(x).log(base))
 
 
 @ops.register(ufuncs="log10")
@@ -1594,8 +1595,7 @@ def asin(x):
     _math = infer_math(x)
     if _math is math:
         return _math.asin(x)
-    else:
-        return _math.arcsin(x)
+    return _math.arcsin(x)
 
 
 @asin.derive
@@ -1611,8 +1611,7 @@ def acos(x):
     _math = infer_math(x)
     if _math is math:
         return _math.acos(x)
-    else:
-        return _math.arccos(x)
+    return _math.arccos(x)
 
 
 @acos.derive
@@ -1628,8 +1627,7 @@ def atan(x):
     _math = infer_math(x)
     if _math is math:
         return _math.atan(x)
-    else:
-        return _math.arctan(x)
+    return _math.arctan(x)
 
 
 @atan.derive
@@ -1684,8 +1682,7 @@ def asinh(x):
     _math = infer_math(x)
     if _math is math:
         return _math.asinh(x)
-    else:
-        return _math.arcsinh(x)
+    return _math.arcsinh(x)
 
 
 @ops.register(ufuncs="arccosh")
@@ -1696,8 +1693,7 @@ def acosh(x):
     _math = infer_math(x)
     if _math is math:
         return _math.acosh(x)
-    else:
-        return _math.arccosh(x)
+    return _math.arccosh(x)
 
 
 asinh.derivative = acosh.function
@@ -1712,8 +1708,7 @@ def atanh(x):
     _math = infer_math(x)
     if _math is math:
         return _math.atanh(x)
-    else:
-        return _math.arctanh(x)
+    return _math.arctanh(x)
 
 
 @atanh.derive
@@ -1807,8 +1802,7 @@ def make_list(obj, cast=True):
         return list(obj)
     if isinstance(obj, (tuple, set)) and cast:
         return list(obj)
-    else:
-        return [obj]
+    return [obj]
 
 
 def calculate_uncertainty(terms, rho=0.0):
@@ -1927,11 +1921,11 @@ def combine_uncertainties(op, unc1, unc2, nom1=None, nom2=None, rho=0.0):
     if op == "**":
         return (nom * abs(nom2) * (
             unc1**2.0 + (math.log(nom1) * unc2)**2.0 + 2 * rho * math.log(nom1) * unc1 * unc2)**0.5)
-    else:
-        # flip rho for sub and div
-        if op in ("-", "/"):
-            rho = -rho
-        return nom * (unc1**2.0 + unc2**2.0 + 2.0 * rho * unc1 * unc2)**0.5
+
+    # flip rho for sub and div
+    if op in ("-", "/"):
+        rho = -rho
+    return nom * (unc1**2.0 + unc2**2.0 + 2.0 * rho * unc1 * unc2)**0.5
 
 
 def split_value(val):
