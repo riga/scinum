@@ -14,7 +14,7 @@ from sphinx.domains.python import PyAttribute
 class PyClassAttribute(PyAttribute):
 
     def get_signature_prefix(self, sig):
-        return "classattribute "
+        return "classattribute"
 
     def get_index_text(self, modname, name_cls):
         name, cls = name_cls
@@ -41,4 +41,4 @@ def setup(app):
     domain.object_types["classattribute"] = ObjType(_("classattribute"), "attr", "obj")
     domain.directives["classattribute"] = PyClassAttribute
 
-    return {"version": "scinum_patch"}
+    return {"version": "patch"}
