@@ -1,4 +1,4 @@
-![scinum logo](https://raw.githubusercontent.com/riga/scinum/master/logo250.png "scinum logo")
+![scinum logo](https://media.githubusercontent.com/media/riga/scinum/master/assets/logo250.png "scinum logo")
 
 [![Lint and test](https://github.com/riga/scinum/actions/workflows/lint_and_test.yml/badge.svg)](https://github.com/riga/scinum/actions/workflows/lint_and_test.yml)
 [![Documentation Status](https://readthedocs.org/projects/scinum/badge/?version=latest)](http://scinum.readthedocs.org/en/latest/?badge=latest)
