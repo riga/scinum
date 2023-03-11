@@ -256,80 +256,107 @@ class Number(object):
 
     .. py:classattribute:: default_format
 
-       The default format string (``"%s"``) that is used in :py:meth:`str()` when no format string
-       was passed.
+        type: string
+
+        The default format string (``"%s"``) that is used in :py:meth:`str()` when no format string
+        was passed.
 
     .. py:classattribute:: DEFAULT
 
-       Constant that denotes the default uncertainty (``"default"``).
+        type: string
+
+        Constant that denotes the default uncertainty (``"default"``).
 
     .. py:classattribute:: ALL
 
-       Constant that denotes all uncertainties (``"all"``).
+        type: string
+
+        Constant that denotes all uncertainties (``"all"``).
 
     .. py:classattribute:: REL
 
-       Constant that denotes relative errors (``"rel"``).
+        type: string
+
+        Constant that denotes relative errors (``"rel"``).
 
     .. py:classattribute:: ABS
 
-       Constant that denotes absolute errors (``"abs"``).
+        type: string
+
+        Constant that denotes absolute errors (``"abs"``).
 
     .. py:classattribute:: NOMINAL
 
-       Constant that denotes the nominal value (``"nominal"``).
+        type: string
+
+        Constant that denotes the nominal value (``"nominal"``).
 
     .. py:classattribute:: UP
 
-       Constant that denotes the up direction (``"up"``).
+        type: string
+
+        Constant that denotes the up direction (``"up"``).
 
     .. py:classattribute:: DOWN
 
-       Constant that denotes the down direction (``"down"``).
+        type: string
+
+        Constant that denotes the down direction (``"down"``).
 
     .. py:classattribute:: N
 
-       Shorthand for :py:attr:`NOMINAL`.
+        type: string
+
+        Shorthand for :py:attr:`NOMINAL`.
 
     .. py:classattribute:: U
 
-       Shorthand for :py:attr:`UP`.
+        type: string
+
+        Shorthand for :py:attr:`UP`.
 
     .. py:classattribute:: D
 
-       Shorthand for :py:attr:`DOWN`.
+        type: string
+
+        Shorthand for :py:attr:`DOWN`.
 
     .. py:attribute:: nominal
-       type: float
 
-       The nominal value.
+        type: float
+
+        The nominal value.
 
     .. py:attribute:: n
-       type: float
 
-       Shorthand for :py:attr:`nominal`.
+        type: float
+
+        Shorthand for :py:attr:`nominal`.
 
     .. py:attribute:: uncertainties
-       type: dictionary
 
-       The uncertainty dictionary that maps names to 2-tuples holding absolute up/down effects.
+        type: dictionary
+
+        The uncertainty dictionary that maps names to 2-tuples holding absolute up/down effects.
 
     .. py:attribute:: is_numpy
-       type: bool
-       read-only
 
-       Whether or not a NumPy array is wrapped.
+        type: bool (read-only)
+
+        Whether or not a NumPy array is wrapped.
 
     .. py:attribute:: shape
-       type: tuple
 
-       The shape of the wrapped NumPy array or *None*, depending on what type is wrapped.
+        type: tuple
+
+        The shape of the wrapped NumPy array or *None*, depending on what type is wrapped.
 
     .. py:attribute:: dtype
-       type: type
 
-       The default dtype to use when a NumPy array is wrapped. The initial value is
-       ``numpy.float32`` when NumPy is available, *None* otherwise.
+        type: type
+
+        The default dtype to use when a NumPy array is wrapped. The initial value is
+        ``numpy.float32`` when NumPy is available, *None* otherwise.
     """
 
     # uncertainty flags
@@ -1176,33 +1203,35 @@ class Operation(object):
     Wrapper around a function and its derivative.
 
     .. py:attribute:: function
-       type: function
 
-       The wrapped function.
+        type: function
+
+        The wrapped function.
 
     .. py:attribute:: derivative
-       type: function
 
-       The wrapped derivative.
+        type: function
+
+        The wrapped derivative.
 
     .. py:attribute:: name
-       type: string
-       read-only
 
-       The name of the operation.
+        type: string (read-only)
+
+        The name of the operation.
 
     .. py:attribute:: py_op
-       type: None, string
-       read-only
 
-       The symbol referring to an operation that implements uncertainty propagation combining two
-       operands.
+        type: None, string (read-only)
+
+        The symbol referring to an operation that implements uncertainty propagation combining two
+        operands.
 
     .. py:attribute:: ufuncs
-       type: list
-       read-only
 
-       List of ufunc objects that this operation handles.
+        type: list (read-only)
+
+        List of ufunc objects that this operation handles.
     """
 
     def __init__(self, function, derivative=None, name=None, py_op=None, ufuncs=None):
