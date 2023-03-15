@@ -140,6 +140,12 @@ Functions
 .. autofunction:: round_value
 
 
+``format_multiplicative_uncertainty``
+-------------------------------------
+
+.. autofunction:: format_multiplicative_uncertainty
+
+
 ``infer_si_prefix``
 -------------------
 

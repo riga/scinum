@@ -13,7 +13,7 @@ import unittest
 from scinum import (
     Number, Correlation, DeferredResult, ops, HAS_NUMPY, HAS_UNCERTAINTIES, split_value,
     match_precision, calculate_uncertainty, round_uncertainty, round_value, infer_si_prefix,
-    create_hep_data_representer,
+    create_hep_data_representer, format_multiplicative_uncertainty,
 )
 
 if HAS_NUMPY:
@@ -631,6 +631,28 @@ class TestCase(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             round_value(np.array([1.23, 4.56, 10]), method="pub")
+
+    def test_format_multiplicative_uncertainty(self):
+        self.assertEqual(
+            format_multiplicative_uncertainty(Number(1, 0.15j)),
+            "1.150",
+        )
+        self.assertEqual(
+            format_multiplicative_uncertainty(Number(1, 0.15j), digits=2),
+            "1.15",
+        )
+        self.assertEqual(
+            format_multiplicative_uncertainty(Number(1, (0.151j, 0.152j))),
+            "1.151/0.848",
+        )
+        self.assertEqual(
+            format_multiplicative_uncertainty(Number(1, (0.151j, 0.152j)), digits=2),
+            "1.15",
+        )
+        self.assertEqual(
+            format_multiplicative_uncertainty(Number(1, 0.15j), asym_threshold=0.1),
+            "1.150/0.850",
+        )
 
     def test_infer_si_prefix(self):
         self.assertEqual(infer_si_prefix(0), ("", 0))

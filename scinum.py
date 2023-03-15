@@ -559,8 +559,18 @@ class Number(object):
         if uncertainties is not None:
             self.uncertainties = uncertainties
 
-    def str(self, format=None, unit=None, scientific=False, si=False, labels=True, style="plain",
-            styles=None, force_asymmetric=False, **kwargs):
+    def str(
+        self,
+        format=None,
+        unit=None,
+        scientific=False,
+        si=False,
+        labels=True,
+        style="plain",
+        styles=None,
+        force_asymmetric=False,
+        **kwargs  # noqa
+    ):
         r"""
         Returns a readable string representiation of the number. *format* is used to format
         non-NumPy nominal and uncertainty values. It can be a string such as ``"%d"``, a function
@@ -2378,6 +2388,42 @@ def round_value(val, unc=None, method=0, align_precision=True, **kwargs):
         ]
 
     return (val_str, (unc_strs if multi else unc_strs[0]) if has_unc else None, ref_mag)
+
+
+def format_multiplicative_uncertainty(num, unc="default", digits=3, asym_threshold=0.2):
+    """
+    Creates an inline representation of an uncertainty named *unc* of a :py:class:`Number` *num* and
+    returns it. The representation makes use of the mulitiplicative factors that would scale the
+    nominal to the up/down varied values. Example:
+
+    .. code-block:: python
+
+        format_uncertainty_inline(Number(1.4, 0.15j))  # 15% relative uncertainty
+        # -> "1.150"  # symmetric
+
+        format_uncertainty_inline(Number(1.4, (0.15j, 0.1j)))  # +15%/-10% relative uncertainty
+        # -> "1.150/0.900"  # asymmetric
+
+    When the uncertainty is either symmetric within a certain number of *digits* and the smallest
+    effect is below *asym_threshold*, the symmetric representation is used (first example). In any
+    other case, the asymmetric version us returned.
+    """
+    # get both multiplicative factors
+    f_u = num("up", unc, factor=True)
+    f_d = num("down", unc, factor=True)
+
+    # if at least one absolute effect is large, consider them asymmetric,
+    # if their effects are opposite and similar, consider them symmetric
+    mag_u = abs(1.0 - f_u)
+    mag_d = abs(1.0 - f_d)
+    sym = (
+        max(mag_u, mag_d) < asym_threshold and
+        round(f_u, digits) == round(2.0 - f_d, digits)
+    )
+
+    # format and return
+    tmpl = "{{:.{}f}}".format(digits)
+    return tmpl.format(f_u) if sym else (tmpl + "/" + tmpl).format(f_u, f_d)
 
 
 si_refixes = dict(zip(
