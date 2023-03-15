@@ -650,6 +650,7 @@ class Number(object):
             else:
                 # special formatting implemented by round_value
                 nominal, uncs, _mag = round_value(nominal, uncs, method=format, **kwargs)
+
                 def fmt(x, **kwargs):
                     return match_precision(float(x) * 10.0**_mag, 10.0**_mag, **kwargs)
 

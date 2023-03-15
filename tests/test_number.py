@@ -9,6 +9,7 @@ import math
 import decimal
 import operator
 import unittest
+from collections import OrderedDict
 
 from scinum import (
     Number, Correlation, DeferredResult, ops, HAS_NUMPY, HAS_UNCERTAINTIES, split_value,
@@ -43,16 +44,16 @@ class TestCase(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super(TestCase, self).__init__(*args, **kwargs)
 
-        self.num = Number(2.5, {
-            "A": 0.5,
-            "B": (1.0,),
-            "C": (1.0, 1.5),
-            "D": (Number.REL, 0.1),
-            "E": (Number.REL, 0.1, 0.2),
-            "F": (1.0, Number.REL, 0.2),
-            "G": (Number.REL, 0.3, Number.ABS, 0.3),
-            "H": (0.3j, 0.3),
-        })
+        self.num = Number(2.5, OrderedDict([
+            ("A", 0.5),
+            ("B", (1.0,)),
+            ("C", (1.0, 1.5)),
+            ("D", (Number.REL, 0.1)),
+            ("E", (Number.REL, 0.1, 0.2)),
+            ("F", (1.0, Number.REL, 0.2)),
+            ("G", (Number.REL, 0.3, Number.ABS, 0.3)),
+            ("H", (0.3j, 0.3)),
+        ]))
 
     def test_constructor(self):
         num = Number(42, 5)
