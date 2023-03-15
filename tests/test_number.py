@@ -13,6 +13,7 @@ import unittest
 from scinum import (
     Number, Correlation, DeferredResult, ops, HAS_NUMPY, HAS_UNCERTAINTIES, split_value,
     match_precision, calculate_uncertainty, round_uncertainty, round_value, infer_si_prefix,
+    create_hep_data_representer,
 )
 
 if HAS_NUMPY:
@@ -676,3 +677,39 @@ class TestCase(unittest.TestCase):
         n = (self.num * Correlation(A=0)) + self.num
         self.assertEqual(n.u("A"), (0.5**0.5, 0.5**0.5))
         self.assertEqual(n.u("B"), (2.0, 2.0))
+
+    def test_hep_data_export(self):
+        import yaml
+
+        yaml.add_representer(Number, create_hep_data_representer())
+
+        self.assertEqual(yaml.dump(self.num).strip(), """
+value: 2.500
+errors:
+- label: A
+  symerror: 0.500
+- label: B
+  symerror: 1.000
+- label: C
+  asymerror:
+    plus: 1.000
+    minus: -1.500
+- label: D
+  symerror: 0.250
+- label: E
+  asymerror:
+    plus: 0.250
+    minus: -0.500
+- label: F
+  asymerror:
+    plus: 1.000
+    minus: -0.500
+- label: G
+  asymerror:
+    plus: 0.750
+    minus: -0.300
+- label: H
+  asymerror:
+    plus: 0.750
+    minus: -0.300
+""".strip())

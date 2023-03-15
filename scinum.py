@@ -423,7 +423,8 @@ class Number(object):
                 # compare shape if already an array
                 elif nominal.shape != first_unc.shape:
                     raise ValueError("shape not matching uncertainty shape: {}".format(
-                        nominal.shape))
+                        nominal.shape,
+                    ))
             nominal = nominal.astype(self.dtype)
         else:
             raise TypeError("invalid nominal value: {}".format(nominal))
@@ -639,8 +640,8 @@ class Number(object):
             else:
                 # special formatting implemented by round_value
                 nominal, uncs, _mag = round_value(nominal, uncs, method=format, **kwargs)
-                fmt = lambda x, **kwargs: match_precision(float(x) * 10.0**_mag, 10.0**_mag,
-                    **kwargs)
+                def fmt(x, **kwargs):
+                    return match_precision(float(x) * 10.0**_mag, 10.0**_mag, **kwargs)
 
             # helper to build the ending consisting of scientific notation or SI prefix, and unit
             def ending():
@@ -711,8 +712,9 @@ class Number(object):
         if not self.is_numpy:
             text = "'" + self.str(*args, **kwargs) + "'"
         else:
-            text = "numpy array, shape {}, {} uncertainties".format(self.shape,
-                len(self.uncertainties))
+            text = "numpy array, shape {}, {} uncertainties".format(
+                self.shape, len(self.uncertainties),
+            )
 
         return "<{} at {}, {}>".format(self.__class__.__name__, hex(id(self)), text)
 
@@ -838,16 +840,20 @@ class Number(object):
         if isinstance(op, Operation):
             py_op = op.py_op
             if not py_op:
-                raise RuntimeError("cannot apply operation using {} intance that is not configured "
-                    "to combine uncertainties of two operations".format(op))
+                raise RuntimeError(
+                    "cannot apply operation using {} intance that is not configured "
+                    "to combine uncertainties of two operations".format(op),
+                )
 
         # when other is a correlation object and op is (mat)mul, return a deferred result that is to
         # be resolved in the next operation
         if isinstance(other, Correlation):
             if py_op not in correlation_ops:
                 names = ",".join(o.__name__ for o in correlation_ops)
-                raise ValueError("cannot apply correlation object {} via operator {}, supported "
-                    "operators are: {}".format(other, py_op.__name__, names))
+                raise ValueError(
+                    "cannot apply correlation object {} via operator {}, supported "
+                    "operators are: {}".format(other, py_op.__name__, names),
+                )
             return DeferredResult(self, other)
 
         # when other is a deferred result, use its number of correlation
@@ -907,8 +913,10 @@ class Number(object):
         # let the operation itself handle the uncerainty update
         if op.has_py_op():
             if len(inputs) != 2:
-                raise RuntimeError("the operation '{}' is configured to combine uncertainties of "
-                    "two operands, but received only {}: {}".format(op, len(inputs), inputs))
+                raise RuntimeError(
+                    "the operation '{}' is configured to combine uncertainties of "
+                    "two operands, but received only {}: {}".format(op, len(inputs), inputs),
+                )
             result = inputs[0]._apply(op, inputs[1], inplace=False, **kwargs)
         else:
             result = op(*inputs, **kwargs)
@@ -1280,8 +1288,7 @@ class Operation(object):
 
     def __call__(self, num, *args, **kwargs):
         if self.derivative is None:
-            raise Exception("cannot run operation '{}', no derivative registered".format(
-                self.name))
+            raise Exception("cannot run operation '{}', no derivative registered".format(self.name))
 
         # ensure we deal with a number instance
         num = ensure_number(num)
@@ -1896,10 +1903,12 @@ def combine_uncertainties(op, unc1, unc2, nom1=None, nom2=None, rho=0.0):
     # when numpy arrays, the shapes of unc and nom must match
     if is_numpy(unc1) and is_numpy(nom1) and unc1.shape != nom1.shape:
         raise ValueError("the shape of unc1 and nom1 must be equal, found {} and {}".format(
-            unc1.shape, nom1.shape))
+            unc1.shape, nom1.shape,
+        ))
     if is_numpy(unc2) and is_numpy(nom2) and unc2.shape != nom2.shape:
         raise ValueError("the shape of unc2 and nom2 must be equal, found {} and {}".format(
-            unc2.shape, nom2.shape))
+            unc2.shape, nom2.shape,
+        ))
 
     # prepare values for combination, depends on operator
     if op in ("*", "/", "**"):
@@ -1948,8 +1957,11 @@ def combine_uncertainties(op, unc1, unc2, nom1=None, nom2=None, rho=0.0):
 
     # combined formula
     if op == "**":
-        return (nom * abs(nom2) * (
-            unc1**2.0 + (math.log(nom1) * unc2)**2.0 + 2 * rho * math.log(nom1) * unc1 * unc2)**0.5)
+        return (
+            nom *
+            abs(nom2) *
+            (unc1**2.0 + (math.log(nom1) * unc2)**2.0 + 2 * rho * math.log(nom1) * unc1 * unc2)**0.5
+        )
 
     # flip rho for sub and div
     if op in ("-", "/"):
@@ -2059,7 +2071,8 @@ def infer_uncertainty_precision(sig, mag, method):
     if isinstance(method, integer_types):
         if method <= 0:
             raise ValueError("cannot infer precision for non-positive method value '{}'".format(
-                method))
+                method,
+            ))
 
         prec = method
         if _is_numpy:
@@ -2084,8 +2097,10 @@ def infer_uncertainty_precision(sig, mag, method):
 
         else:  # is_numpy
             if not is_numpy(mag) or sig.shape != mag.shape:
-                raise ValueError("sig and mag must both be NumPy arrays with the same shape, got\n"
-                    "{}\nand\n{}".format(sig, mag))
+                raise ValueError(
+                    "sig and mag must both be NumPy arrays with the same shape, got\n"
+                    "{}\nand\n{}".format(sig, mag),
+                )
 
             prec = np.ones(sig.shape, int) * prec
 
@@ -2298,8 +2313,10 @@ def round_value(val, unc=None, method=0, align_precision=True, **kwargs):
     if method in infer_uncertainty_precision.uncertainty_methods:
         # uncertainty based rounding
         if not has_unc:
-            raise ValueError("cannot perform uncertainty based rounding with method '{}' "
-                "without uncertainties on value {}".format(method, val))
+            raise ValueError(
+                "cannot perform uncertainty based rounding with method '{}' "
+                "without uncertainties on value {}".format(method, val),
+            )
 
         # use the uncertainty with the smallest magnitude
         get_mag = lambda u: round_uncertainty(u, method=method)[1]
@@ -2412,8 +2429,10 @@ def create_hep_data_representer(method=None, force_asymmetric=False, force_float
     rounding internally.
     """
     if not HAS_YAML:
-        raise RuntimeError("create_hep_data_representer requires PyYAML (https://pyyaml.org) to be "
-            "installed on your system")
+        raise RuntimeError(
+            "create_hep_data_representer requires PyYAML (https://pyyaml.org) to be installed on " +
+            "your system",
+        )
 
     # yaml node factories
     y_map = lambda value: yaml.MappingNode(tag="tag:yaml.org,2002:map", value=value)
@@ -2440,12 +2459,16 @@ def create_hep_data_representer(method=None, force_asymmetric=False, force_float
 
         # apply the rounding method
         nom = num.nominal
-        uncs = num.uncertainties.values()
+        uncs = list(num.uncertainties.values())
         _method = method or num.default_format or "pdg+1"
         nom, uncs, mag = round_value(nom, uncs, method=_method, **kwargs)
         def fmt(x, sign=1.0):
-            return match_precision(sign * float(x) * 10.0**mag, 10.0**mag, force_float=force_float,
-                **kwargs)
+            return match_precision(
+                sign * float(x) * 10.0**mag,
+                10.0**mag,
+                force_float=force_float,
+                **kwargs  # noqa
+            )
 
         # build error nodes
         error_nodes = []
