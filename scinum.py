@@ -404,6 +404,9 @@ class Number(object):
 
         self.default_format = default_format
 
+    def _init_kwargs(self):
+        return {"default_format": self.default_format}
+
     @typed
     def nominal(self, nominal):
         # parser for the typed member holding the nominal value
@@ -546,6 +549,46 @@ class Number(object):
         uncertainties = self.__class__.uncertainties.fparse(self, {name: value})
         self._uncertainties.update(uncertainties)
 
+    def combine_uncertaintes(self, combine=ALL):
+        """ combine_uncertaintes(combine_uncs=ALL)
+        Returns a copy of this number with certain uncertainties combined. *combine* can be a
+        dictionary of keys mapping to strings denoting uncertainties that should be combined with
+        keys refering to new names of the combined uncertainties.
+
+        When :py:attr:`ALL`, all uncertainties are combined.
+        """
+        # create a map that contains all uncertainties
+        combine_map = OrderedDict()
+        if combine == self.ALL:
+            combine_map[self.DEFAULT] = list(self.uncertainties.keys())
+        elif isinstance(combine, dict):
+            seen_uncs = set()
+            for new_name, names in combine.items():
+                if names == self.ALL:
+                    combine_map[new_name] = list(self.uncertainties.keys())
+                elif isinstance(names, (list, tuple)):
+                    combine_map[new_name] = list(names)
+                else:
+                    raise ValueError("expected uncertainty names sequence, got '{}'".format(names))
+                seen_uncs |= set(combine_map[new_name])
+            # add remaining uncertainties
+            for name in self.uncertainties:
+                if name not in seen_uncs:
+                    combine_map[name] = None
+        else:
+            raise TypeError("cannot interpret uncertainties to combine from '{}'".format(combine))
+
+        # create combined uncertainties
+        uncs = OrderedDict()
+        for new_name, names in combine_map.items():
+            uncs[new_name] = (
+                self.uncertainties[new_name]
+                if names is None
+                else self.get(direction=(self.UP, self.DOWN), names=names, unc=True)
+            )
+
+        return self.__class__(self.nominal, uncs, **self._init_kwargs())
+
     def clear(self, nominal=None, uncertainties=None):
         """
         Removes all uncertainties and sets the nominal value to zero (float). When *nominal* and
@@ -562,6 +605,7 @@ class Number(object):
     def str(
         self,
         format=None,
+        combine_uncs=None,
         unit=None,
         scientific=False,
         si=False,
@@ -580,25 +624,30 @@ class Number(object):
         of NumPy objects, *kwargs* are passed to `numpy.array2string
         <https://docs.scipy.org/doc/numpy/reference/generated/numpy.array2string.html>`_.
 
+        When *combine_uncs* is set, uncertainties are reduced via :py:meth:`combine_uncertaintes`.
         When *unit* is set, it is appended to the end of the string. When *scientific* is *True*,
         all values are represented by their scientific notation. When *scientific* is *False* and
-        *si* is *True*, the appropriate SI prefix is used. *labels* controls whether uncertainty
-        labels are shown in the string. When *True*, uncertainty names are used, but it can also
-        be a list of labels whose order should match the uncertainty dict traversal order. *style*
-        can be ``"plain"``, ``"latex"``, or ``"root"``. *styles* can be a dict with fields
-        ``"space"``, ``"label"``, ``"unit"``, ``"sym"``, ``"asym"``, ``"sci"`` to customize every
-        aspect of the format style on top of :py:attr:`style_dict`. Unless *force_asymmetric* is
-        *True*, an uncertainty is quoted symmetric if it yields identical values in both directions.
+        *si* is *True*, the appropriate SI prefix is used.
+
+        *labels* controls whether uncertainty labels are shown in the string. When *True*,
+        uncertainty names are used, but it can also be a list of labels whose order should match the
+        uncertainty dict traversal order. *style* can be ``"plain"``, ``"latex"``, or ``"root"``.
+
+        *styles* can be a dict with fields ``"space"``, ``"label"``, ``"unit"``, ``"sym"``,
+        ``"asym"``, ``"sci"`` to customize every aspect of the format style on top of
+        :py:attr:`style_dict`. Unless *force_asymmetric* is *True*, an uncertainty is quoted
+        symmetric if it yields identical values in both directions.
 
         Examples:
 
         .. code-block:: python
 
             n = Number(17.321, {"a": 1.158, "b": 0.453})
-            n.str()               # -> '17.321 +- 1.158 (a) +- 0.453 (b)'
-            n.str("%.1f")         # -> '17.3 +- 1.2 (a) +- 0.5 (b)'
-            n.str("publication")  # -> '17.32 +- 1.16 (a) +- 0.45 (b)'
-            n.str("pdg")          # -> '17.3 +- 1.2 (a) +- 0.5 (b)'
+            n.str()                    # -> '17.321 +- 1.158 (a) +- 0.453 (b)'
+            n.str("%.1f")              # -> '17.3 +- 1.2 (a) +- 0.5 (b)'
+            n.str("publication")       # -> '17.32 +- 1.16 (a) +- 0.45 (b)'
+            n.str("pdg")               # -> '17.3 +- 1.2 (a) +- 0.5 (b)'
+            n.str(combine_uncs="all")  # -> 'TODO'
 
             n = Number(8848, 10)
             n.str(unit="m")                           # -> "8848.0 +- 10.0 m"
@@ -614,6 +663,21 @@ class Number(object):
         """
         if format is None:
             format = self.default_format or self.__class__.default_format
+
+        # when uncertainties should be combined, create a new instance and forward to its formatting
+        if combine_uncs:
+            return self.combine_uncertaintes(combine=combine_uncs).str(
+                format=format,
+                unit=unit,
+                scientific=scientific,
+                si=si,
+                labels=labels,
+                style=style,
+                styles=styles,
+                force_asymmetric=force_asymmetric,
+                **kwargs  # noqa
+
+            )
 
         if not self.is_numpy:
             # check style

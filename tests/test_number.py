@@ -218,14 +218,14 @@ class TestCase(unittest.TestCase):
     def test_uncertainty_combination(self):
         nom = self.num.nominal
 
-        allUp = ptgr(0.5, 1.0, 1.0, 0.25, 0.25, 1.0, 0.75, 0.75)
-        allDown = ptgr(0.5, 1.0, 1.5, 0.25, 0.5, 0.5, 0.3, 0.3)
-        self.assertEqual(self.num.get(UP), nom + allUp)
-        self.assertEqual(self.num.get(DOWN), nom - allDown)
+        all_up = ptgr(0.5, 1.0, 1.0, 0.25, 0.25, 1.0, 0.75, 0.75)
+        all_down = ptgr(0.5, 1.0, 1.5, 0.25, 0.5, 0.5, 0.3, 0.3)
+        self.assertEqual(self.num.get(UP), nom + all_up)
+        self.assertEqual(self.num.get(DOWN), nom - all_down)
 
         self.assertEqual(self.num.get(UP, ("A", "B")), nom + ptgr(1, 0.5))
         self.assertEqual(self.num.get(DOWN, ("B", "C")), nom - ptgr(1, 1.5))
-        self.assertEqual(self.num.get(DOWN), nom - allDown)
+        self.assertEqual(self.num.get(DOWN), nom - all_down)
 
         for name in "ABCDEFGH":
             unc = self.num.get_uncertainty(name)
@@ -365,6 +365,26 @@ class TestCase(unittest.TestCase):
         self.assertEqual(num(), 0)
         self.assertEqual(num(UP), 0)
         self.assertEqual(num(DOWN), 0)
+
+    def test_combine_uncertaintes(self):
+        n = Number(8848, {"stat": (30, 20), "syst": 20, "other": 10})
+
+        n1 = n.combine_uncertaintes()
+        self.assertEqual(n1.str(format=3), "8848.0 +37.4-30.0")
+
+        n2 = n.combine_uncertaintes({"x": ["stat", "syst"]})
+        self.assertEqual(n2.str(format=3), "8848.0 +36.1-28.3 (x) +- 10.0 (other)")
+
+        n3 = n.combine_uncertaintes({"x": ["stat", "syst"], "y": "all"})
+        self.assertEqual(n3.str(format=3), "8848.0 +36.1-28.3 (x) +37.4-30.0 (y)")
+
+    def test_uncertainty_format(self):
+        n = Number(8848, {"stat": (30, 20), "syst": 20, "other": 10})
+
+        self.assertEqual(
+            n.str(format=3, combine_uncs={"x": ["stat", "syst"], "y": "all"}),
+            "8848.0 +36.1-28.3 (x) +37.4-30.0 (y)",
+        )
 
     def test_ops_registration(self):
         self.assertTrue("exp" in ops)
