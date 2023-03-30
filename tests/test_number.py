@@ -375,14 +375,14 @@ class TestCase(unittest.TestCase):
         n2 = n.combine_uncertaintes({"x": ["stat", "syst"]})
         self.assertEqual(n2.str(format=3), "8848.0 +36.1-28.3 (x) +- 10.0 (other)")
 
-        n3 = n.combine_uncertaintes({"x": ["stat", "syst"], "y": "all"})
+        n3 = n.combine_uncertaintes(OrderedDict([("x", ["stat", "syst"]), ("y", "all")]))
         self.assertEqual(n3.str(format=3), "8848.0 +36.1-28.3 (x) +37.4-30.0 (y)")
 
     def test_uncertainty_format(self):
         n = Number(8848, {"stat": (30, 20), "syst": 20, "other": 10})
 
         self.assertEqual(
-            n.str(format=3, combine_uncs={"x": ["stat", "syst"], "y": "all"}),
+            n.str(format=3, combine_uncs=OrderedDict([("x", ["stat", "syst"]), ("y", "all")])),
             "8848.0 +36.1-28.3 (x) +37.4-30.0 (y)",
         )
 
