@@ -261,6 +261,13 @@ class Number(object):
         The default format string (``"%s"``) that is used in :py:meth:`str()` when no format string
         was passed.
 
+    .. py:classattribute:: default_style
+
+        type: string
+
+        The default style name (``"plain"``) that is used in :py:meth:`str()` when no style argument
+        was passed.
+
     .. py:classattribute:: DEFAULT
 
         type: string
@@ -378,8 +385,9 @@ class Number(object):
     D = DOWN
 
     default_format = "%s"
+    default_style = "plain"
 
-    def __init__(self, nominal=0.0, uncertainties=None, default_format=None):
+    def __init__(self, nominal=0.0, uncertainties=None, default_format=None, default_style=None):
         super(Number, self).__init__()
 
         # wrapped values
@@ -403,9 +411,13 @@ class Number(object):
             self.uncertainties = uncertainties
 
         self.default_format = default_format
+        self.default_style = default_style
 
     def _init_kwargs(self):
-        return {"default_format": self.default_format}
+        return {
+            "default_format": self.default_format,
+            "default_style": self.default_style,
+        }
 
     @typed
     def nominal(self, nominal):
@@ -610,7 +622,7 @@ class Number(object):
         scientific=False,
         si=False,
         labels=True,
-        style="plain",
+        style=None,
         styles=None,
         force_asymmetric=False,
         **kwargs  # noqa
@@ -632,7 +644,7 @@ class Number(object):
         *labels* controls whether uncertainty labels are shown in the string. When *True*,
         uncertainty names are used, but it can also be a list of labels whose order should match the
         uncertainty dict traversal order. *style* can be ``"plain"``, ``"fancy"``, ``"latex"``, or
-        ``"root"``.
+        ``"root"``. When *None* (the default), :py:attr:`default_style` is used.
 
         *styles* can be a dict with fields ``"space"``, ``"label"``, ``"unit"``, ``"sym"``,
         ``"asym"``, ``"sci"`` to customize every aspect of the format style on top of
@@ -666,6 +678,8 @@ class Number(object):
         """
         if format is None:
             format = self.default_format or self.__class__.default_format
+        if style is None:
+            style = self.default_style or self.__class__.default_style
 
         # when uncertainties should be combined, create a new instance and forward to its formatting
         if combine_uncs:
