@@ -242,15 +242,15 @@ class Number(object):
     .. code-block:: python
 
         num = Number(5, 1)
-        print(num + 2)  # -> '7.0 +- 1.0'
-        print(num * 3)  # -> '15.0 +- 3.0'
+        print(num + 2)  # -> '7.0 ±1.0'
+        print(num * 3)  # -> '15.0 ±3.0'
 
         num2 = Number(2.5, 1.5)
-        print(num + num2)  # -> '7.5 +- 1.80277563773'
-        print(num * num2)  # -> '12.5 +- 7.90569415042'
+        print(num + num2)  # -> '7.5 ±1.80277563773'
+        print(num * num2)  # -> '12.5 ±7.90569415042'
 
         num.add(num2, rho=1)
-        print(num)  # -> '7.5 +- 2.5'
+        print(num)  # -> '7.5 ±2.5'
 
     See :py:meth:`str` for information on string formatting.
 
@@ -643,23 +643,23 @@ class Number(object):
         .. code-block:: python
 
             n = Number(17.321, {"a": 1.158, "b": 0.453})
-            n.str()                    # -> '17.321 +- 1.158 (a) +- 0.453 (b)'
-            n.str("%.1f")              # -> '17.3 +- 1.2 (a) +- 0.5 (b)'
-            n.str("publication")       # -> '17.32 +- 1.16 (a) +- 0.45 (b)'
-            n.str("pdg")               # -> '17.3 +- 1.2 (a) +- 0.5 (b)'
+            n.str()                    # -> '17.321 ±1.158 (a) ±0.453 (b)'
+            n.str("%.1f")              # -> '17.3 ±1.2 (a) ±0.5 (b)'
+            n.str("publication")       # -> '17.32 ±1.16 (a) ±0.45 (b)'
+            n.str("pdg")               # -> '17.3 ±1.2 (a) ±0.5 (b)'
             n.str(combine_uncs="all")  # -> 'TODO'
 
             n = Number(8848, 10)
-            n.str(unit="m")                           # -> "8848.0 +- 10.0 m"
+            n.str(unit="m")                           # -> "8848.0 ±10.0 m"
             n.str(unit="m", force_asymmetric=True)    # -> "8848.0 +10.0-10.0 m"
-            n.str(unit="m", scientific=True)          # -> "8.848 +- 0.01 x 1E3 m"
-            n.str("%.2f", unit="m", scientific=True)  # -> "8.85 +- 0.01 x 1E3 m"
-            n.str(unit="m", si=True)                  # -> "8.848 +- 0.01 km"
-            n.str("%.2f", unit="m", si=True)          # -> "8.85 +- 0.01 km"
-            n.str(unit="m", style="latex")            # -> "8848.0 \pm 10.0\,m"
-            n.str(unit="m", style="latex", si=True)   # -> "8.848 \pm 0.01\,km"
-            n.str(unit="m", style="root")             # -> "8848.0 #pm 10.0 m"
-            n.str(unit="m", style="root", si=True)    # -> "8.848 #pm 0.01 km"
+            n.str(unit="m", scientific=True)          # -> "8.848 ±0.01 x 1E3 m"
+            n.str("%.2f", unit="m", scientific=True)  # -> "8.85 ±0.01 x 1E3 m"
+            n.str(unit="m", si=True)                  # -> "8.848 ±0.01 km"
+            n.str("%.2f", unit="m", si=True)          # -> "8.85 ±0.01 km"
+            n.str(unit="m", style="latex")            # -> "8848.0 \pm10.0\,m"
+            n.str(unit="m", style="latex", si=True)   # -> "8.848 \pm0.01\,km"
+            n.str(unit="m", style="root")             # -> "8848.0 #pm10.0 m"
+            n.str(unit="m", style="root", si=True)    # -> "8.848 #pm0.01 km"
         """
         if format is None:
             format = self.default_format or self.__class__.default_format
@@ -1240,14 +1240,14 @@ class DeferredResult(object):
         n = Number(2, 5)
 
         n * Correlation(1) * n
-        # -> '25.0 +- 20.0' (the default)
+        # -> '25.0 ±20.0' (the default)
 
         n * Correlation(0) * n
-        # -> '25.00 +- 14.14'
+        # -> '25.00 ±14.14'
 
         # note the multiplication n * c, which creates the DeferredResult
         n**(n * c)
-        # -> '3125.00 +- 11842.54'
+        # -> '3125.00 ±11842.54'
 
     .. py:attribute:: number
        type: Number
@@ -2621,7 +2621,7 @@ def create_hep_data_representer(method=None, force_asymmetric=False, force_float
 #:         "space": " ",
 #:         "label": "({label})",
 #:         "unit": " {unit}",
-#:         "sym": "+- {unc}",
+#:         "sym": "±{unc}",
 #:         "asym": "+{up}-{down}",
 #:         "sci": "x 1E{mag}",
 #:     }
@@ -2630,7 +2630,7 @@ style_dict = {
         "space": " ",
         "label": "({label})",
         "unit": " {unit}",
-        "sym": "+- {unc}",
+        "sym": "±{unc}",
         "asym": "+{up}-{down}",
         "sci": "x 1E{mag}",
     },
@@ -2638,7 +2638,7 @@ style_dict = {
         "space": r" ",
         "label": r"\left(\text{{{label}}}\right)",
         "unit": r"\,{unit}",
-        "sym": r"\pm {unc}",
+        "sym": r"\pm{unc}",
         "asym": r"\,^{{+{up}}}_{{-{down}}}",
         "sci": r"\times 10^{{{mag}}}",
     },
@@ -2646,7 +2646,7 @@ style_dict = {
         "space": " ",
         "label": "#left({label}#right)",
         "unit": " {unit}",
-        "sym": "#pm {unc}",
+        "sym": "#pm{unc}",
         "asym": "^{{+{up}}}_{{-{down}}}",
         "sci": "#times 10^{{{mag}}}",
     },
