@@ -80,12 +80,12 @@ However, it is probably more convenient to use `Correlation` objects:
 from scinum import Number, Correlation
 
 num = Number(2, 5)
-print(num * num)  # -> '4.0 +- 20.0', fully correlated by default
+print(num * num)  # -> '4.0 +-20.0', fully correlated by default
 # same as
 # print(num**2)
 # print(num.pow(2, inplace=False))
 
-print(num * Correlation(0) * num)  # -> '4.0 +- 14.14', no correlation
+print(num * Correlation(0) * num)  # -> '4.0 +-14.14', no correlation
 # same as
 # print(num.pow(2, rho=0, inplace=False))
 ```
@@ -119,10 +119,12 @@ Correlation(sourceA=0)     # zero correlation for sourceA, no default
 ```python
 # output formatting
 n = Number(8848, 10)
-n.str(unit="m")                          # -> "8848.0 +- 10.0 m"
+n.str(unit="m")                          # -> "8848.0 +-10.0 m"
 n.str(unit="m", force_asymmetric=True)   # -> "8848.0 +10.0-10.0 m"
-n.str(unit="m", scientific=True)         # -> "8.848 +- 0.01 x 1E3 m"
-n.str(unit="m", si=True)                 # -> "8.848 +- 0.01 km"
+n.str(unit="m", scientific=True)         # -> "8.848 +-0.01 x 1E3 m"
+n.str(unit="m", si=True)                 # -> "8.848 +-0.01 km"
+n.str(style="fancy")                     # -> "$8848.0 ±10.0$"
+n.str(unit="m", style="fancy")           # -> "$8848.0 ±10.0\,m$"
 n.str(unit="m", style="latex")           # -> "$8848.0 \pm 10.0\,m$"
 n.str(unit="m", style="latex", si=True)  # -> "8.848 \pm 0.01\,km"
 n.str(unit="m", style="root")            # -> "8848.0 #pm 10.0 m"
@@ -130,10 +132,10 @@ n.str(unit="m", style="root", si=True)   # -> "8.848 #pm 0.01 km"
 
 # output rounding
 n = Number(17.321, {"a": 1.158, "b": 0.453})
-n.str()               # -> '17.321 +- 1.158 (a) +- 0.453 (b)'
-n.str("%.1f")         # -> '17.3 +- 1.2 (a) +- 0.5 (b)'
-n.str("publication")  # -> '17.32 +- 1.16 (a) +- 0.45 (b)'
-n.str("pdg")          # -> '17.3 +- 1.2 (a) +- 0.5 (b)'
+n.str()               # -> '17.321 +-1.158 (a) +-0.453 (b)'
+n.str("%.1f")         # -> '17.3 +-1.2 (a) +-0.5 (b)'
+n.str("publication")  # -> '17.32 +-1.16 (a) +-0.45 (b)'
+n.str("pdg")          # -> '17.3 +-1.2 (a) +-0.5 (b)'
 ```
 
 For situations that require more sophisticated rounding and formatting rules, you might want to checkout:
@@ -151,16 +153,16 @@ For situations that require more sophisticated rounding and formatting rules, yo
 from scinum import Number
 
 num = Number(5, 1)
-print(num + 2)  # -> '7.0 +- 1.0'
-print(num * 3)  # -> '15.0 +- 3.0'
+print(num + 2)  # -> '7.0 +-1.0'
+print(num * 3)  # -> '15.0 +-3.0'
 
 num2 = Number(2.5, 1.5)
-print(num + num2)  # -> '7.5 +- 2.5'
-print(num * num2)  # -> '12.5 +- 10.0'
+print(num + num2)  # -> '7.5 +-2.5'
+print(num * num2)  # -> '12.5 +-10.0'
 
 # add num2 to num and consider their uncertainties to be fully uncorrelated, i.e. rho = 0
 num.add(num2, rho=0)
-print(num)  # -> '7.5 +- 1.80277563773'
+print(num)  # -> '7.5 +-1.80277563773'
 ```
 
 
@@ -172,11 +174,11 @@ As a drop-in replacement for the `math` module, scinum provides an object `ops` 
 from scinum import Number, ops
 
 num = ops.log(Number(5, 2))
-print(num)  # -> 1.60943791243 +- 0.4
+print(num)  # -> 1.60943791243 +-0.4
 
 num = ops.exp(ops.tan(Number(5, 2)))
-print(num)  # -> 0.0340299245972 +- 0.845839754815
-print(num.str("%.2f"))  # -> 0.03 +- 0.85
+print(num)  # -> 0.0340299245972 +-0.845839754815
+print(num.str("%.2f"))  # -> 0.03 +-0.85
 ```
 
 
