@@ -149,22 +149,30 @@ class TestCase(unittest.TestCase):
         self.assertEqual(num.u(direction=UP).shape, (3,))
 
     def test_string_formats(self):
-        self.assertEqual(len(self.num.str()), 105)
-        self.assertEqual(len(self.num.str("%.3f")), 129)
-        self.assertEqual(len(self.num.str(lambda n: "%s" % n)), 105)
-        self.assertEqual(len(self.num.str(lambda n: "X%s" % n)), 119)
-        self.assertEqual(len(self.num.repr().split(" ", 3)[-1]), 108)
-        self.assertEqual(len(self.num.str(2)), 115)
-        self.assertEqual(len(self.num.str(3)), 129)
-        self.assertEqual(len(self.num.str(4)), 143)
-        self.assertEqual(len(self.num.str(-1)), 101)
-        self.assertEqual(len(self.num.str("pub")), 129)
-        self.assertEqual(len(self.num.str("publication")), 129)
-        self.assertEqual(len(self.num.str("pdg")), 115)
-        self.assertEqual(len(self.num.str("pdg+1")), 129)
+        self.assertEqual(len(self.num.str()), 102)
+        self.assertEqual(len(self.num.str("%.3f")), 126)
+        self.assertEqual(len(self.num.str(lambda n: "%s" % n)), 102)
+        self.assertEqual(len(self.num.str(lambda n: "X%s" % n)), 116)
+        self.assertEqual(len(self.num.repr().split(" ", 3)[-1]), 105)
+        self.assertEqual(len(self.num.str(2)), 112)
+        self.assertEqual(len(self.num.str(3)), 126)
+        self.assertEqual(len(self.num.str(4)), 140)
+        self.assertEqual(len(self.num.str(-1)), 98)
+        self.assertEqual(len(self.num.str("pub")), 126)
+        self.assertEqual(len(self.num.str("publication")), 126)
+        self.assertEqual(len(self.num.str("pdg")), 112)
+        self.assertEqual(len(self.num.str("pdg+1")), 126)
 
         with self.assertRaises(ValueError):
             self.num.str("foo")
+
+        self.assertEqual(len(self.num.str(style="fancy")), 99)
+        self.assertEqual(len(self.num.str(style="root")), 223)
+        self.assertEqual(len(self.num.str(style="latex")), 289)
+        self.assertEqual(len(self.num.str()), 102)
+        self.num.default_style = "fancy"
+        self.assertEqual(len(self.num.str()), 99)
+        self.num.default_style = "plain"
 
         num = self.num.copy()
         num.uncertainties = {}
@@ -177,20 +185,20 @@ class TestCase(unittest.TestCase):
         n = Number(8848, {"stat": (30, 20)})
         n.set_uncertainty("syst", (Number.REL, 0.5))
 
-        self.assertEqual(n.str(), "8848.0 +30.0-20.0 (stat) +- 4424.0 (syst)")
-        self.assertEqual(n.str(scientific=True), "8.848 +0.03-0.02 (stat) +- 4.424 (syst) x 1E3")
+        self.assertEqual(n.str(), "8848.0 +30.0-20.0 (stat) +-4424.0 (syst)")
+        self.assertEqual(n.str(scientific=True), "8.848 +0.03-0.02 (stat) +-4.424 (syst) x 1E3")
         self.assertEqual(n.str(scientific=True, unit="m"),
-            "8.848 +0.03-0.02 (stat) +- 4.424 (syst) x 1E3 m")
-        self.assertEqual(n.str(si=True), "8.848 +0.03-0.02 (stat) +- 4.424 (syst) k")
-        self.assertEqual(n.str(si=True, unit="m"), "8.848 +0.03-0.02 (stat) +- 4.424 (syst) km")
-        self.assertEqual(n.str("%.2f", si=True), "8.85 +0.03-0.02 (stat) +- 4.42 (syst) k")
-        self.assertEqual(n.str(-2, si=True), "8.85 +0.03-0.02 (stat) +- 4.42 (syst) k")
+            "8.848 +0.03-0.02 (stat) +-4.424 (syst) x 1E3 m")
+        self.assertEqual(n.str(si=True), "8.848 +0.03-0.02 (stat) +-4.424 (syst) k")
+        self.assertEqual(n.str(si=True, unit="m"), "8.848 +0.03-0.02 (stat) +-4.424 (syst) km")
+        self.assertEqual(n.str("%.2f", si=True), "8.85 +0.03-0.02 (stat) +-4.42 (syst) k")
+        self.assertEqual(n.str(-2, si=True), "8.85 +0.03-0.02 (stat) +-4.42 (syst) k")
 
-        self.assertEqual(n.str("%.3f", si=True), "8.848 +0.030-0.020 (stat) +- 4.424 (syst) k")
-        self.assertEqual(n.str(-3, si=False), "8848.000 +30.000-20.000 (stat) +- 4424.000 (syst)")
-        self.assertEqual(n.str(-3, si=True), "8.848 +0.030-0.020 (stat) +- 4.424 (syst) k")
-        self.assertEqual(n.str(3, si=False), "8848.0 +30.0-20.0 (stat) +- 4424.0 (syst)")
-        self.assertEqual(n.str("pdg", si=False), "8848 +30-20 (stat) +- 4000 (syst)")
+        self.assertEqual(n.str("%.3f", si=True), "8.848 +0.030-0.020 (stat) +-4.424 (syst) k")
+        self.assertEqual(n.str(-3, si=False), "8848.000 +30.000-20.000 (stat) +-4424.000 (syst)")
+        self.assertEqual(n.str(-3, si=True), "8.848 +0.030-0.020 (stat) +-4.424 (syst) k")
+        self.assertEqual(n.str(3, si=False), "8848.0 +30.0-20.0 (stat) +-4424.0 (syst)")
+        self.assertEqual(n.str("pdg", si=False), "8848 +30-20 (stat) +-4000 (syst)")
 
     def test_uncertainty_parsing(self):
         uncs = {}
@@ -373,7 +381,7 @@ class TestCase(unittest.TestCase):
         self.assertEqual(n1.str(format=3), "8848.0 +37.4-30.0")
 
         n2 = n.combine_uncertaintes({"x": ["stat", "syst"]})
-        self.assertEqual(n2.str(format=3), "8848.0 +36.1-28.3 (x) +- 10.0 (other)")
+        self.assertEqual(n2.str(format=3), "8848.0 +36.1-28.3 (x) +-10.0 (other)")
 
         n3 = n.combine_uncertaintes(OrderedDict([("x", ["stat", "syst"]), ("y", "all")]))
         self.assertEqual(n3.str(format=3), "8848.0 +36.1-28.3 (x) +37.4-30.0 (y)")
