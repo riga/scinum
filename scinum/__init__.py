@@ -5,6 +5,8 @@ Scientific numbers with multiple uncertainties and correlation-aware, gaussian p
 support.
 """
 
+from __future__ import annotations
+
 
 __author__ = "Marcel Rieger"
 __email__ = "python-scinum@googlegroups.com"
@@ -13,7 +15,7 @@ __credits__ = ["Marcel Rieger"]
 __contact__ = "https://github.com/riga/scinum"
 __license__ = "BSD-3-Clause"
 __status__ = "Development"
-__version__ = "1.4.7"
+__version__ = "2.0.0"
 __all__ = [
     "Number", "Correlation", "DeferredResult", "Operation",
     "ops", "style_dict",
@@ -21,7 +23,6 @@ __all__ = [
 ]
 
 
-import sys
 import math
 import re
 import functools
@@ -53,32 +54,8 @@ except ImportError:
     HAS_YAML = False
 
 
-# version related adjustments
-string_types = (str,)
-if sys.version_info.major < 3:
-    string_types += (basestring,)  # noqa
-
-integer_types = (int,)
-if sys.version_info.major < 3:
-    integer_types += (long,)  # noqa
-
-correlation_ops = (operator.mul,)
-if sys.version_info.major >= 3:
-    correlation_ops += (operator.matmul,)
-
-
-# metaclass decorator from six package, credits to Benjamin Peterson
-def with_metaclass(meta, *bases):
-    class metaclass(type):
-
-        def __new__(cls, name, this_bases, d):
-            return meta(name, bases, d)
-
-        @classmethod
-        def __prepare__(cls, name, this_bases):
-            return meta.__prepare__(name, bases)
-
-    return type.__new__(metaclass, "temporary_class", (), {})
+# operators that enable correlation attachments
+correlation_ops = (operator.mul, operator.matmul)
 
 
 class typed(property):
@@ -466,7 +443,7 @@ class Number(object):
         _uncertainties = OrderedDict()
         for name, val in uncertainties.items():
             # check the name
-            if not isinstance(name, string_types):
+            if not isinstance(name, str):
                 raise TypeError("invalid uncertainty name: {}".format(name))
 
             # parse the value type
@@ -481,7 +458,7 @@ class Number(object):
             utype, up, down = self.ABS, None, None
             for v in val:
                 # check if v changes the uncertainty type for subsequent values
-                if isinstance(v, string_types):
+                if isinstance(v, str):
                     if v not in (self.ABS, self.REL):
                         raise ValueError("unknown uncertainty type: {}".format(v))
                     utype = v
@@ -725,7 +702,7 @@ class Number(object):
             # prepare formatting
             if callable(format):
                 fmt = format
-            elif isinstance(format, string_types) and "%" in format:
+            elif isinstance(format, str) and "%" in format:
                 # string formatting
                 fmt = lambda x: format % x
             else:
@@ -1413,7 +1390,7 @@ class OpsMeta(type):
         return name in cls._instances
 
 
-class ops(with_metaclass(OpsMeta, object)):
+class ops(object, metaclass=OpsMeta):
     """
     Number-aware replacement for the global math (or numpy) module. The purpose of the class is to
     provide operations (e.g. `pow`, `cos`, `sin`, etc.) that automatically propagate the
@@ -1472,7 +1449,7 @@ class ops(with_metaclass(OpsMeta, object)):
         _ufuncs = []
         if ufuncs is not None:
             for u in (ufuncs if isinstance(ufuncs, (list, tuple)) else [ufuncs]):
-                if isinstance(u, string_types):
+                if isinstance(u, str):
                     if not HAS_NUMPY:
                         continue
                     u = getattr(np, u)
@@ -1517,7 +1494,7 @@ class ops(with_metaclass(OpsMeta, object)):
         a string or the function itself. *None* is returned when no operation was found to handle
         the function.
         """
-        if isinstance(ufunc, string_types):
+        if isinstance(ufunc, str):
             if not HAS_NUMPY:
                 return None
             ufunc = getattr(np, ufunc)
@@ -2160,7 +2137,7 @@ def infer_uncertainty_precision(sig, mag, method):
     """
     _is_numpy = is_numpy(sig)
 
-    if isinstance(method, integer_types):
+    if isinstance(method, int):
         if method <= 0:
             raise ValueError("cannot infer precision for non-positive method value '{}'".format(
                 method,
@@ -2431,7 +2408,7 @@ def round_value(val, unc=None, method=0, align_precision=True, **kwargs):
                 for u in unc
             ]
 
-    elif isinstance(method, integer_types) and method > 0:
+    elif isinstance(method, int) and method > 0:
         # positive integer passed, interpret as number of significant digits of smallest value,
         # either in nominal value or uncertainties
         ref = val
@@ -2442,10 +2419,10 @@ def round_value(val, unc=None, method=0, align_precision=True, **kwargs):
                 ref = np.min(np.stack([val] + flat_unc, axis=0), axis=0)
         ref_mag = split_value(ref)[1] - (method - 1)
 
-    elif ((isinstance(method, integer_types) and method <= 0) or
-            (isinstance(method, string_types) and method.startswith("%"))):
+    elif ((isinstance(method, int) and method <= 0) or
+            (isinstance(method, str) and method.startswith("%"))):
         # negative number of format string, interpret as number of digits after decimal point
-        if isinstance(method, string_types):
+        if isinstance(method, str):
             m = re.match(r"^\%.*\.(\d+)f$", method)
             if not m:
                 raise ValueError("format string should end with '.<int>f': {}".format(method))
