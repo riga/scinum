@@ -1,0 +1,56 @@
+[build-system]
+
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+
+[project]
+
+name = "scinum"
+description = "Scientific numbers with multiple uncertainties and correlation-aware, gaussian propagation and Numpy support."
+authors = [
+    {name = "Marcel Rieger", email = "marcel.rieger@cern.ch"},
+]
+keywords = [
+    "scientific",
+    "numbers",
+    "error",
+    "systematics",
+    "propagation",
+]
+classifiers = [
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Development Status :: 4 - Beta",
+    "Operating System :: OS Independent",
+    "License :: OSI Approved :: BSD License",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Information Technology",
+]
+license = {file = "LICENSE"}
+requires-python = ">=3.7"
+dynamic = ["version", "readme", "dependencies", "optional-dependencies"]
+
+
+[tool.setuptools.dynamic]
+
+version = {attr = "scinum.__init__.__version__"}
+readme = {file = ["README.md"], content-type = "text/markdown"}
+dependencies = {file = ["requirements.txt"]}
+optional-dependencies = {dev = {file = ["requirements_dev.txt"]}}
+
+
+[tool.setuptools]
+
+include-package-data = false
+
+
+[tool.setuptools.packages.find]
+
+include = ["scinum"]
+exclude = ["tests/*"]

@@ -33,7 +33,6 @@ html_logo = "../assets/logo.png"
 html_favicon = "../assets/favicon.ico"
 html_theme = "sphinx_book_theme"
 html_theme_options = {
-    "logo_only": True,
     "show_navbar_depth": 2,
     "repository_url": "https://github.com/riga/scinum",
     "use_repository_button": True,

@@ -1,2 +1,3 @@
-include scinum.py setup.py requirements.txt requirements_docs.txt README.md LICENSE .flake8
-global-exclude *.py[cod] __pycache__ .github
+graft scinum
+include requirements.txt requirements_dev.txt README.md LICENSE .flake8
+global-exclude *.py[cod] __pycache__ .github tests/*
