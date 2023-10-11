@@ -9,6 +9,8 @@
 
 scinum provides a simple `Number` class that wraps plain floats or [NumPy](http://www.numpy.org/) arrays and adds support for multiple uncertainties, automatic (gaussian) error propagation, and scientific rounding.
 
+**Note**: This legacy branch still supports Python versions 2.7 and 3.6, but will not see extensive future updates.
+Checkout the [master](https://github.com/riga/scinum/tree/master) for latest developments.
 
 ### Usage
 
