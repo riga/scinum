@@ -2695,10 +2695,10 @@ def create_hep_data_representer(
 
     For documentation of the rounding *method*, see :py:func:`round_uncertainty`. When *None*, the
     *default_format* of the number instance is used in case it is not a python format string.
-    Otherwise ``"pdg+1"`` is assumed. When the up and down variations of an uncertainty are
-    identical after rounding, they are encoded as a symmetric uncertainty unless *force_asymmetric*
-    is *True*. Also, when all decimal digits are removed during rounding, the final value is encoded
-    as an integer value unless *force_float* is *True*.
+    Otherwise ``3`` is assumed, i.e., 3 significant digits. When the up and down variations of an
+    uncertainty are identical after rounding, they are encoded as a symmetric uncertainty unless
+    *force_asymmetric* is *True*. Also, when all decimal digits are removed during rounding, the
+    final value is encoded as an integer value unless *force_float* is *True*.
 
     All remaining *kwargs* are forwarded to :py:func:`match_precision` which is performing the
     rounding internally.
@@ -2735,7 +2735,7 @@ def create_hep_data_representer(
         # apply the rounding method
         nom = num.nominal
         uncs = list(num.uncertainties.values())
-        _method = method or num.default_format or "pdg+1"
+        _method = method or num.default_format or 3
         nom, uncs, mag = round_value(nom, uncs, method=_method, **kwargs)
         def fmt(x, sign=1.0):
             return match_precision(
