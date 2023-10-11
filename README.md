@@ -94,18 +94,15 @@ Use single values to denote symmetric uncertainties, and tuples for asymmetric o
 Float values refer to absolute values whereas complex numbers (only their imaginary part) define relative effects.
 
 ```python
-from scinum import Number, ABS, REL
+from scinum import Number
 
 num = Number(2.5, {
-    "sourceA": 0.5,              # absolute 0.5, both up and down
-    "sourceB": (1.0, 1.5),       # absolute 1.0 up, 1.5 down
-    "sourceC": 0.1j,             # relative 10%, both up and down
-    "sourceD": (0.1j, 0.2j),     # relative 10% up, relative 20% down
-    "sourceE": (1.0, 0.2j),      # absolute 1.0 up, relative 20% down
-    "sourceF": (0.3j, 0.3),      # relative 30% up, absolute 0.3 down
-    # the old 'marker' syntax
-    "sourceG": (REL, 0.1, 0.2),       # relative 10% up, relative 20% down
-    "sourceH": (REL, 0.1, ABS, 0.2),  # relative 10% up, absolute 0.2 down
+    "sourceA": 0.5,           # absolute 0.5, both up and down
+    "sourceB": (1.0, 1.5),    # absolute 1.0 up, 1.5 down
+    "sourceC": 0.1j,          # relative 10%, both up and down
+    "sourceD": (0.1j, 0.2j),  # relative 10% up, relative 20% down
+    "sourceE": (1.0, 0.2j),   # absolute 1.0 up, relative 20% down
+    "sourceF": (0.3j, 0.3),   # relative 30% up, absolute 0.3 down
 })
 ```
 

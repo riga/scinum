@@ -51,10 +51,10 @@ class TestCase(unittest.TestCase):
             ("A", 0.5),
             ("B", (1.0,)),
             ("C", (1.0, 1.5)),
-            ("D", (Number.REL, 0.1)),
-            ("E", (Number.REL, 0.1, 0.2)),
-            ("F", (1.0, Number.REL, 0.2)),
-            ("G", (Number.REL, 0.3, Number.ABS, 0.3)),
+            ("D", (0.1j)),
+            ("E", (0.1j, 0.2j)),
+            ("F", (1.0, 0.2j)),
+            ("G", (0.3j, 0.3)),
             ("H", (0.3j, 0.3)),
         ]))
 
@@ -189,7 +189,7 @@ class TestCase(unittest.TestCase):
 
     def test_string_flags(self: TestCase) -> None:
         n = Number(8848, {"stat": (30, 20)})
-        n.set_uncertainty("syst", (Number.REL, 0.5))
+        n.set_uncertainty("syst", (0.5j))
 
         self.assertEqual(n.str(), "8848.0 +30.0-20.0 (stat) +-4424.0 (syst)")
         self.assertEqual(n.str(scientific=True), "8.848 +0.03-0.02 (stat) +-4.424 (syst) x 1E3")
@@ -224,7 +224,7 @@ class TestCase(unittest.TestCase):
         self.assertEqual(uncs["H"], (0.75, 0.3))
 
         num = self.num.copy()
-        num.set_uncertainty("I", (Number.REL, 0.5, Number.ABS, 0.5))
+        num.set_uncertainty("I", (0.5j, 0.5))
         self.assertEqual(num.get_uncertainty("I"), (1.25, 0.5))
         num.set_uncertainty("J", (0.5j, 0.5))
         self.assertEqual(num.get_uncertainty("J"), (1.25, 0.5))

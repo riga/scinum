@@ -211,17 +211,6 @@ Other attributes
 
    Shorthand for :py:attr:`Number.DOWN`.
 
-.. py:attribute:: REL
-   type: string
-
-   Shorthand for :py:attr:`Number.REL`.
-
-.. py:attribute:: ABS
-   type: string
-
-   Shorthand for :py:attr:`Number.ABS`.
-
-
 .. |colab| image:: https://colab.research.google.com/assets/colab-badge.svg
    :target: https://colab.research.google.com/github/riga/scinum/blob/master/example.ipynb
    :alt: Open in colab

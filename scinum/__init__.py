@@ -18,7 +18,7 @@ __version__ = "2.0.1"
 __all__ = [
     "Number", "Correlation", "DeferredResult", "Operation",
     "ops", "style_dict",
-    "REL", "ABS", "NOMINAL", "UP", "DOWN", "N", "U", "D",
+    "NOMINAL", "UP", "DOWN", "N", "U", "D",
 ]
 
 
@@ -162,36 +162,28 @@ class Number(object):
     denote whether the passed value is relative or absolute, it should be noted that after some
     initial parsing, they are always stored as absolute numbers represented by floats internally.
 
-    Uncertainty values can be normal floats to denote absolute, or a complex number to denote
+    Uncertainty values can be normal floats to denote absolute, or complex numbers to denote
     relative values. In the latter case, only the imaginary part is used, meaning that one only
     needs to append the complex ``j`` (e.g. ``0.3j`` for a 30% effect). Asymmetric uncertainties can
     be defined by passing a 2-tuple of the above values, describing the up and down effect.
-
-    In previous versions of scinum, relative uncertainties could only be denoted using a marker-like
-    syntax, using the :py:attr:`REL` and :py:attr:`ABS` flags. This format is still supported as it
-    avoids copying values (e.g. large NumPy arrays) to make them complex. However, the complex
-    number syntax is recommended in all other scenarios.
 
     Examples:
 
     .. code-block:: python
 
-        from scinum import Number, REL, ABS, UP, DOWN
+        from scinum import Number, UP, DOWN
 
         num = Number(2.5, {
-            "sourceA": 0.5,              # absolute 0.5, both up and down
-            "sourceB": (1.0, 1.5),       # absolute 1.0 up, 1.5 down
-            "sourceC": 0.1j,             # relative 10%, both up and down
-            "sourceD": (0.1j, 0.2j),     # relative 10% up, relative 20% down
-            "sourceE": (1.0, 0.2j),      # absolute 1.0 up, relative 20% down
-            "sourceF": (0.3j, 0.3),      # relative 30% up, absolute 0.3 down
-            # examples using the old 'marker' syntax
-            "sourceG": (REL, 0.1, 0.2),       # relative 10% up, relative 20% down
-            "sourceH": (REL, 0.1, ABS, 0.2),  # relative 10% up, absolute 0.2 down
+            "sourceA": 0.5,           # absolute 0.5, both up and down
+            "sourceB": (1.0, 1.5),    # absolute 1.0 up, 1.5 down
+            "sourceC": 0.1j,          # relative 10%, both up and down
+            "sourceD": (0.1j, 0.2j),  # relative 10% up, relative 20% down
+            "sourceE": (1.0, 0.2j),   # absolute 1.0 up, relative 20% down
+            "sourceF": (0.3j, 0.3),   # relative 30% up, absolute 0.3 down
         })
 
         # get the nominal value via direct access
-        num.nominal # => 2.5
+        num.nominal  # => 2.5
 
         # get the nominal value via __call__() (same as get())
         num()                     # => 2.5
@@ -271,18 +263,6 @@ class Number(object):
 
         Constant that denotes all uncertainties (``"all"``).
 
-    .. py:classattribute:: REL
-
-        type: string
-
-        Constant that denotes relative errors (``"rel"``).
-
-    .. py:classattribute:: ABS
-
-        type: string
-
-        Constant that denotes absolute errors (``"abs"``).
-
     .. py:classattribute:: NOMINAL
 
         type: string
@@ -360,10 +340,6 @@ class Number(object):
     # uncertainty flags
     DEFAULT = "default"
     ALL = "all"
-
-    # uncertainty types
-    REL = "rel"
-    ABS = "abs"
 
     # uncertainty directions
     NOMINAL = "nominal"
@@ -480,20 +456,21 @@ class Number(object):
             elif not isinstance(val, tuple):
                 raise TypeError(f"invalid uncertainty type: {val}")
 
-            # parse the value itself
-            utype, up, down = self.ABS, None, None
-            for v in val:
-                # check if v changes the uncertainty type for subsequent values
-                if isinstance(v, str):
-                    if v not in (self.ABS, self.REL):
-                        raise ValueError(f"unknown uncertainty type: {v}")
-                    utype = v
-                    continue
+            # check the length
+            if len(val) == 0:
+                continue
+            if len(val) == 1:
+                val = 2 * val
+            if len(val) != 2:
+                raise ValueError(f"invalid uncertainty format: {val}")
 
+            # parse the value itself
+            utype, up, down = "abs", None, None
+            for v in val:
                 # interpret complex numbers as relative uncertainties
                 _utype = utype
                 if isinstance(v, complex):
-                    _utype = self.REL
+                    _utype = "rel"
                     v = v.imag
 
                 # parse the value
@@ -511,7 +488,7 @@ class Number(object):
                     raise TypeError(f"invalid uncertainty value: {v}")
 
                 # convert to abs
-                if _utype == self.REL:
+                if _utype == "rel":
                     v *= self.nominal
 
                 # store the value
@@ -720,8 +697,7 @@ class Number(object):
                 style=style,
                 styles=styles,
                 force_asymmetric=force_asymmetric,
-                **kwargs  # noqa
-
+                **kwargs,
             )
 
         if not self.is_numpy:
@@ -1282,8 +1258,6 @@ class Number(object):
 
 
 # module-wide shorthands for Number flags
-REL = Number.REL
-ABS = Number.ABS
 NOMINAL = Number.NOMINAL
 UP = Number.UP
 DOWN = Number.DOWN
@@ -2768,7 +2742,7 @@ def create_hep_data_representer(
                 sign * float(x) * 10.0**mag,
                 10.0**mag,
                 force_float=force_float,
-                **kwargs  # noqa
+                **kwargs,
             )
 
         # build error nodes
