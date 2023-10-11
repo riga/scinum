@@ -11,14 +11,8 @@
 <!-- marker-before-badges -->
 
 <p align="center">
-  <a href="https://github.com/riga/scinum/actions/workflows/lint_and_test.yml">
-    <img alt="Lint and test" src="https://github.com/riga/scinum/actions/workflows/lint_and_test.yml/badge.svg" />
-  </a>
   <a href="http://scinum.readthedocs.org/en/latest/?badge=latest">
     <img alt="Documentation Status" src="https://readthedocs.org/projects/scinum/badge/?version=latest" />
-  </a>
-  <a href="https://codecov.io/gh/riga/scinum">
-    <img alt="Cover coverage" src="https://codecov.io/gh/riga/scinum/branch/master/graph/badge.svg?token=bvykpaUaHQ" />
   </a>
   <img alt="Python version" src="https://img.shields.io/badge/Python-%E2%89%A53.7-blue" />
   <a href="https://pypi.python.org/pypi/scinum">
@@ -29,6 +23,12 @@
   </a>
   <a href="https://github.com/riga/scinum/blob/master/LICENSE">
     <img alt="License" src="https://img.shields.io/github/license/riga/scinum.svg" />
+  </a>
+  <a href="https://github.com/riga/scinum/actions/workflows/lint_and_test.yml">
+    <img alt="Lint and test" src="https://github.com/riga/scinum/actions/workflows/lint_and_test.yml/badge.svg" />
+  </a>
+  <a href="https://codecov.io/gh/riga/scinum">
+    <img alt="Cover coverage" src="https://codecov.io/gh/riga/scinum/branch/master/graph/badge.svg?token=bvykpaUaHQ" />
   </a>
   <a href="https://colab.research.google.com/github/riga/scinum/blob/master/example.ipynb">
     <img alt="Example notebook on Colab" src="https://colab.research.google.com/assets/colab-badge.svg" />

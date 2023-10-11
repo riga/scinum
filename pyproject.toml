@@ -37,6 +37,13 @@ requires-python = ">=3.7"
 dynamic = ["version", "readme", "dependencies", "optional-dependencies"]
 
 
+[project.urls]
+
+Homepage = "https://github.com/riga/scinum"
+Documentation = "https://scinum.readthedocs.io"
+Repository = "https://github.com/riga/scinum.git"
+
+
 [tool.setuptools.dynamic]
 
 version = {attr = "scinum.__init__.__version__"}
