@@ -30,6 +30,12 @@
   <a href="https://github.com/riga/scinum/blob/master/LICENSE">
     <img alt="License" src="https://img.shields.io/github/license/riga/scinum.svg" />
   </a>
+  <a href="https://colab.research.google.com/github/riga/scinum/blob/master/example.ipynb">
+    <img alt="Example notebook on Colab" src="https://colab.research.google.com/assets/colab-badge.svg" />
+  </a>
+  <a href="https://mybinder.org/v2/gh/riga/scinum/master?filepath=example.ipynb">
+    <img alt="Example notebook on Binder" src="https://mybinder.org/badge_logo.svg" />
+  </a>
 </p>
 
 <!-- marker-after-badges -->
@@ -37,6 +43,9 @@
 <!-- marker-before-header -->
 
 scinum provides a simple `Number` class that wraps plain floats or [NumPy](http://www.numpy.org/) arrays and adds support for multiple uncertainties, automatic (gaussian) error propagation, and scientific rounding.
+
+**Note**: Support for Python versions 2.7 and 3.6 has been dropped starting from v2.0.0.
+Checkout the [legacy/v1.4 branch](https://github.com/riga/scinum/tree/legacy/v1.4) for legacy support.
 
 <!-- marker-after-header -->
 

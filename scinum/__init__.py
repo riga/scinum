@@ -9,7 +9,6 @@ from __future__ import annotations
 
 
 __author__ = "Marcel Rieger"
-__email__ = "python-scinum@googlegroups.com"
 __copyright__ = "Copyright 2017-2023, Marcel Rieger"
 __credits__ = ["Marcel Rieger"]
 __contact__ = "https://github.com/riga/scinum"
@@ -30,21 +29,29 @@ import operator
 import types
 import decimal
 from collections import defaultdict, OrderedDict
+from types import ModuleType
+from typing import TypeVar, Callable, Any, Sequence
+
+T = TypeVar("T")
 
 # optional imports
 try:
     import numpy as np
     HAS_NUMPY = True
+    np_array = np.array
 except ImportError:
     np = None
     HAS_NUMPY = False
+    np_array = None
 
 try:
     import uncertainties as _uncs
     HAS_UNCERTAINTIES = True
+    unc_variable = _uncs.core.Variable
 except ImportError:
     _uncs = None
     HAS_UNCERTAINTIES = False
+    unc_variable = None
 
 try:
     import yaml
@@ -87,7 +94,14 @@ class typed(property):
     setter is called, *fparse* is invoked which may implement sanity checks.
     """
 
-    def __init__(self, fparse=None, setter=True, deleter=True, name=None):
+    def __init__(
+        self: typed,
+        fparse: Callable[[T], T | None] | None = None,
+        *,
+        setter: bool = True,
+        deleter: bool = True,
+        name: str | None = None,
+    ) -> None:
         self._args = (setter, deleter, name)
 
         # only register the property if fparse is set
@@ -103,39 +117,39 @@ class typed(property):
             m_name = "_" + name
 
             # call the super constructor with generated methods
-            property.__init__(self,
+            super().__init__(
                 functools.wraps(fparse)(self._fget(m_name)),
                 self._fset(m_name) if setter else None,
                 self._fdel(m_name) if deleter else None,
             )
 
-    def __call__(self, fparse):
+    def __call__(self: typed, fparse: Callable[[T], T | None]) -> typed:
         return self.__class__(fparse, *self._args)
 
-    def _fget(self, name):
+    def _fget(self: typed, name: str) -> Callable[[typed], Any]:
         """
         Build and returns the property's *fget* method for the member defined by *name*.
         """
-        def fget(inst):
+        def fget(inst: typed) -> Any:
             return getattr(inst, name)
         return fget
 
-    def _fset(self, name):
+    def _fset(self: typed, name: str) -> Callable[[typed, Any], None]:
         """
         Build and returns the property's *fdel* method for the member defined by *name*.
         """
-        def fset(inst, value):
+        def fset(inst: typed, value: Any) -> None:
             # the setter uses the wrapped function as well
             # to allow for value checks
             value = self.fparse(inst, value)
             setattr(inst, name, value)
         return fset
 
-    def _fdel(self, name):
+    def _fdel(self: typed, name: str) -> Callable[[typed], None]:
         """
         Build and returns the property's *fdel* method for the member defined by *name*.
         """
-        def fdel(inst):
+        def fdel(inst: typed) -> None:
             delattr(inst, name)
         return fdel
 
@@ -364,8 +378,17 @@ class Number(object):
     default_format = "%s"
     default_style = "plain"
 
-    def __init__(self, nominal=0.0, uncertainties=None, default_format=None, default_style=None):
-        super(Number, self).__init__()
+    def __init__(
+        self: Number,
+        nominal: float | np_array = 0.0,
+        uncertainties:
+            float | np_array | tuple[float | np_array] |
+            dict[str, float | np_array | tuple[float | np_array]] | None = None,
+        *,
+        default_format: str | None = None,
+        default_style: str | None = None,
+    ) -> None:
+        super().__init__()
 
         # wrapped values
         self._nominal = None
@@ -390,14 +413,14 @@ class Number(object):
         self.default_format = default_format
         self.default_style = default_style
 
-    def _init_kwargs(self):
+    def _init_kwargs(self: Number) -> dict[str, str | None]:
         return {
             "default_format": self.default_format,
             "default_style": self.default_style,
         }
 
     @typed
-    def nominal(self, nominal):
+    def nominal(self: Number, nominal: float | np_array) -> float | np_array:
         # parser for the typed member holding the nominal value
         if isinstance(nominal, (int, float)):
             if self.uncertainties and is_numpy(list(self.uncertainties.values())[0][0]):
@@ -414,25 +437,28 @@ class Number(object):
                         self._uncertainties[name] = unc
                 # compare shape if already an array
                 elif nominal.shape != first_unc.shape:
-                    raise ValueError("shape not matching uncertainty shape: {}".format(
-                        nominal.shape,
-                    ))
+                    raise ValueError(f"shape not matching uncertainty shape: {nominal.shape}")
             nominal = nominal.astype(self.dtype)
         else:
-            raise TypeError("invalid nominal value: {}".format(nominal))
+            raise TypeError(f"invalid nominal value: {nominal}")
 
         return nominal
 
     @property
-    def n(self):
+    def n(self: Number) -> float | np_array:
         return self.nominal
 
     @n.setter
-    def n(self, n):
+    def n(self: Number, n: float | np_array) -> None:
         self.nominal = n
 
     @typed
-    def uncertainties(self, uncertainties):
+    def uncertainties(
+        self: Number,
+        uncertainties:
+            float | np_array | tuple[float | np_array] |
+            dict[str, float | np_array | tuple[float | np_array]],
+    ) -> dict[str, tuple[float | np_array]]:
         # parser for the typed member holding the uncertainties
         if not isinstance(uncertainties, dict):
             try:
@@ -444,7 +470,7 @@ class Number(object):
         for name, val in uncertainties.items():
             # check the name
             if not isinstance(name, str):
-                raise TypeError("invalid uncertainty name: {}".format(name))
+                raise TypeError(f"invalid uncertainty name: {name}")
 
             # parse the value type
             if isinstance(val, (int, float, complex)) or is_numpy(val):
@@ -452,7 +478,7 @@ class Number(object):
             elif isinstance(val, list):
                 val = tuple(val)
             elif not isinstance(val, tuple):
-                raise TypeError("invalid uncertainty type: {}".format(val))
+                raise TypeError(f"invalid uncertainty type: {val}")
 
             # parse the value itself
             utype, up, down = self.ABS, None, None
@@ -460,7 +486,7 @@ class Number(object):
                 # check if v changes the uncertainty type for subsequent values
                 if isinstance(v, str):
                     if v not in (self.ABS, self.REL):
-                        raise ValueError("unknown uncertainty type: {}".format(v))
+                        raise ValueError(f"unknown uncertainty type: {v}")
                     utype = v
                     continue
 
@@ -479,10 +505,10 @@ class Number(object):
                 elif is_numpy(v):
                     # check the shape
                     if v.shape != self.shape:
-                        raise ValueError("shape not matching nominal shape: {}".format(v.shape))
+                        raise ValueError(f"shape not matching nominal shape: {v.shape}")
                     v = v.astype(self.dtype)
                 else:
-                    raise TypeError("invalid uncertainty value: {}".format(v))
+                    raise TypeError(f"invalid uncertainty value: {v}")
 
                 # convert to abs
                 if _utype == self.REL:
@@ -503,34 +529,50 @@ class Number(object):
 
         return _uncertainties
 
-    def get_uncertainty(self, name=DEFAULT, direction=None, default=None):
+    def get_uncertainty(
+        self: Number,
+        name: str = DEFAULT,
+        direction: str = NOMINAL,
+        *,
+        default: T | None = None,
+    ) -> float | np_array | tuple[float | np_array] | T:
         """
         Returns the *absolute* up and down variaton in a 2-tuple for an uncertainty *name*. When
         *direction* is set, the particular value is returned instead of a 2-tuple. In case no
         uncertainty was found and *default* is not *None*, that value is returned.
         """
-        if direction not in (None, self.UP, self.DOWN):
-            raise ValueError("unknown direction: {}".format(direction))
+        if direction not in (self.UP, self.DOWN, self.NOMINAL):
+            raise ValueError(f"unknown direction: {direction}")
 
         if name not in self.uncertainties:
-            if default is None:
-                raise KeyError("no uncertainty '{}' in {!r}".format(name, self))
-            return default
+            if default is not None:
+                return default
+            raise KeyError(f"no uncertainty '{name}' in {self!r}")
 
         unc = self.uncertainties[name]
 
-        if direction is None:
+        if direction == self.NOMINAL:
             return unc
 
         return unc[0 if direction == self.UP else 1]
 
-    def u(self, *args, **kwargs):
+    def u(
+        self: Number,
+        name: str = DEFAULT,
+        direction: str = NOMINAL,
+        *,
+        default: T | None = None,
+    ) -> float | np_array | tuple[float | np_array] | T:
         """
         Shorthand for :py:meth:`get_uncertainty`.
         """
-        return self.get_uncertainty(*args, **kwargs)
+        return self.get_uncertainty(name=name, direction=direction, default=default)
 
-    def set_uncertainty(self, name, value):
+    def set_uncertainty(
+        self: Number,
+        name: str,
+        value: float | np_array | tuple[float | np_array],
+    ) -> None:
         """
         Sets the uncertainty *value* for an uncertainty *name*. *value* should have one of the
         formats as described in :py:meth:`uncertainties`.
@@ -538,7 +580,10 @@ class Number(object):
         uncertainties = self.__class__.uncertainties.fparse(self, {name: value})
         self._uncertainties.update(uncertainties)
 
-    def combine_uncertaintes(self, combine=ALL):
+    def combine_uncertaintes(
+        self: Number,
+        combine: str | dict[str, Sequence[str]] = ALL,
+    ) -> Number:
         """ combine_uncertaintes(combine_uncs=ALL)
         Returns a copy of this number with certain uncertainties combined. *combine* can be a
         dictionary of keys mapping to strings denoting uncertainties that should be combined with
@@ -558,14 +603,14 @@ class Number(object):
                 elif isinstance(names, (list, tuple)):
                     combine_map[new_name] = list(names)
                 else:
-                    raise ValueError("expected uncertainty names sequence, got '{}'".format(names))
+                    raise ValueError(f"expected uncertainty names sequence, got '{names}'")
                 seen_uncs |= set(combine_map[new_name])
             # add remaining uncertainties
             for name in self.uncertainties:
                 if name not in seen_uncs:
                     combine_map[name] = None
         else:
-            raise TypeError("cannot interpret uncertainties to combine from '{}'".format(combine))
+            raise TypeError(f"cannot interpret uncertainties to combine from '{combine}'")
 
         # create combined uncertainties
         uncs = OrderedDict()
@@ -578,7 +623,13 @@ class Number(object):
 
         return self.__class__(self.nominal, uncs, **self._init_kwargs())
 
-    def clear(self, nominal=None, uncertainties=None):
+    def clear(
+        self: Number,
+        nominal: float | np_array | None = None,
+        uncertainties:
+            float | np_array | tuple[float | np_array] |
+            dict[str, float | np_array | tuple[float | np_array]] | None = None,
+    ) -> None:
         """
         Removes all uncertainties and sets the nominal value to zero (float). When *nominal* and
         *uncertainties* are given, these new values are set on this instance.
@@ -592,18 +643,18 @@ class Number(object):
             self.uncertainties = uncertainties
 
     def str(
-        self,
-        format=None,
-        combine_uncs=None,
-        unit=None,
-        scientific=False,
-        si=False,
-        labels=True,
-        style=None,
-        styles=None,
-        force_asymmetric=False,
-        **kwargs  # noqa
-    ):
+        self: Number,
+        format: str | None = None,
+        combine_uncs: str | dict[str, Sequence[str]] | None = None,
+        unit: str | None = None,
+        scientific: bool = False,
+        si: bool = False,
+        labels: bool = True,
+        style: str | None = None,
+        styles: dict[str, str] | None = None,
+        force_asymmetric: bool = False,
+        **kwargs,
+    ) -> str:
         r"""
         Returns a readable string representiation of the number. *format* is used to format
         non-NumPy nominal and uncertainty values. It can be a string such as ``"%d"``, a function
@@ -677,7 +728,7 @@ class Number(object):
             # check style
             style = style.lower()
             if style not in style_dict.keys():
-                raise ValueError("unknown style '{}'".format(style))
+                raise ValueError(f"unknown style '{style}'")
             d = style_dict[style]
 
             # extend by custom styles
@@ -765,29 +816,34 @@ class Number(object):
                 text += " (no uncertainties)"
             elif len(uncs) == 1 and list(uncs.keys())[0] == self.DEFAULT:
                 up, down = self.get_uncertainty()
-                text += "\n+ {}".format(np.array2string(up, **kwargs))
-                text += "\n- {}".format(np.array2string(down, **kwargs))
+                text += f"\n+ {np.array2string(up, **kwargs)}"
+                text += f"\n- {np.array2string(down, **kwargs)}"
             else:
                 for name, (up, down) in uncs.items():
-                    text += "\n+ {} {}".format(name, np.array2string(up, **kwargs))
-                    text += "\n- {} {}".format(name, np.array2string(down, **kwargs))
+                    text += f"\n+ {name} {np.array2string(up, **kwargs)}"
+                    text += f"\n- {name} {np.array2string(down, **kwargs)}"
 
             return text
 
-    def repr(self, *args, **kwargs):
+    def repr(self: Number, *args, **kwargs) -> str:
         """
-        Returns the unique string representation of the number.
+        Returns the unique string representation of the number, forwarding all *args* and *kwargs*
+        to :py:meth:`str`.
         """
         if not self.is_numpy:
             text = "'" + self.str(*args, **kwargs) + "'"
         else:
-            text = "numpy array, shape {}, {} uncertainties".format(
-                self.shape, len(self.uncertainties),
-            )
+            text = f"numpy array, shape {self.shape}, {len(self.uncertainties)} uncertainties"
 
-        return "<{} at {}, {}>".format(self.__class__.__name__, hex(id(self)), text)
+        return f"<{self.__class__.__name__} at {hex(id(self))}, {text}>"
 
-    def copy(self, nominal=None, uncertainties=None):
+    def copy(
+        self: Number,
+        nominal: float | np_array | None = None,
+        uncertainties:
+            float | np_array | tuple[float | np_array] |
+            dict[str, float | np_array | tuple[float | np_array]] | None = None,
+    ) -> Number:
         """
         Returns a deep copy of the number instance. When *nominal* or *uncertainties* are set, they
         overwrite the fields of the copied instance.
@@ -796,10 +852,17 @@ class Number(object):
             nominal = self.nominal
         if uncertainties is None:
             uncertainties = self.uncertainties
+
         return self.__class__(nominal, uncertainties=uncertainties)
 
-    def get(self, direction=NOMINAL, names=ALL, unc=False, factor=False):
-        """ get(direction=NOMINAL, names=ALL, unc=False, factor=False)
+    def get(
+        self: Number,
+        direction: str = NOMINAL,
+        names: str | Sequence[str] = ALL,
+        unc: bool = False,
+        factor: bool = False,
+    ) -> float | np_array:
+        """
         Returns different representations of the contained value(s). *direction* should be any of
         *NOMINAL*, *UP* or *DOWN*, or a tuple containing a combination of them. When not *NOMINAL*,
         *names* decides which uncertainties to take into account for the combination. When *unc* is
@@ -824,7 +887,7 @@ class Number(object):
                 names = make_list(names)
                 if any(name not in self.uncertainties for name in names):
                     unknown = list(set(names) - set(self.uncertainties.keys()))
-                    raise ValueError("unknown uncertainty name(s): {}".format(unknown))
+                    raise ValueError(f"unknown uncertainty name(s): {unknown}")
 
             # calculate the combined uncertainty without correlation
             idx = int(direction == self.DOWN)
@@ -840,38 +903,53 @@ class Number(object):
                 value = self.nominal - combined_unc
 
         else:
-            raise ValueError("unknown direction: {}".format(direction))
+            raise ValueError(f"unknown direction: {direction}")
 
         return value if not factor else value / self.nominal
 
     @property
-    def is_numpy(self):
+    def is_numpy(self: Number) -> bool:
         return is_numpy(self.nominal)
 
     @property
-    def shape(self):
-        return None if not self.is_numpy else self.nominal.shape
+    def shape(self: Number) -> None | tuple[int]:
+        return self.nominal.shape if self.is_numpy else None
 
-    def add(self, *args, **kwargs):
-        """ add(other, rho=1.0, inplace=True)
+    def add(
+        self: Number,
+        other: Number | DeferredResult,
+        rho: float | Correlation | dict[str, float] = 1.0,
+        inplace: bool = True,
+    ) -> Number:
+        """
         Adds an *other* :py:class:`Number` or :py:class:`DeferredResult` instance, propagating all
         uncertainties. Uncertainties with the same name are combined with the correlation *rho*,
         which can either be a :py:class:`Correlation` instance, a dict with correlations defined per
         uncertainty, or a plain float. When *inplace* is *False*, a new instance is returned.
         """
-        return self._apply(operator.add, *args, **kwargs)
+        return self._apply(operator.add, other=other, rho=rho, inplace=inplace)
 
-    def sub(self, *args, **kwargs):
-        """ sub(other, rho=1.0, inplace=True)
+    def sub(
+        self: Number,
+        other: Number | DeferredResult,
+        rho: float | Correlation | dict[str, float] = 1.0,
+        inplace: bool = True,
+    ) -> Number:
+        """
         Subtracts an *other* :py:class:`Number` or :py:class:`DeferredResult` instance, propagating
         all uncertainties. Uncertainties with the same name are combined with the correlation *rho*,
         which can either be a :py:class:`Correlation` instance, a dict with correlations defined per
         uncertainty, or a plain float. When *inplace* is *False*, a new instance is returned.
         """
-        return self._apply(operator.sub, *args, **kwargs)
+        return self._apply(operator.sub, other=other, rho=rho, inplace=inplace)
 
-    def mul(self, *args, **kwargs):
-        """ mul(other, rho=1.0, inplace=True)
+    def mul(
+        self: Number,
+        other: Number | DeferredResult | Correlation,
+        rho: float | Correlation | dict[str, float] = 1.0,
+        inplace: bool = True,
+    ) -> Number:
+        """
         Multiplies by an *other* :py:class:`Number` or :py:class:`DeferredResult` instance,
         propagating all uncertainties. Uncertainties with the same name are combined with the
         correlation *rho*, which can either be a :py:class:`Correlation` instance, a dict with
@@ -882,37 +960,53 @@ class Number(object):
         which case a :py:class:`DeferredResult` is returned to resolve the combination of
         uncertainties later on.
         """
-        return self._apply(operator.mul, *args, **kwargs)
+        return self._apply(operator.mul, other=other, rho=rho, inplace=inplace)
 
-    def div(self, *args, **kwargs):
-        """ div(other, rho=1.0, inplace=True)
+    def div(
+        self: Number,
+        other: Number | DeferredResult,
+        rho: float | Correlation | dict[str, float] = 1.0,
+        inplace: bool = True,
+    ) -> Number:
+        """
         Divides by an *other* :py:class:`Number` or :py:class:`DeferredResult` instance, propagating
         all uncertainties. Uncertainties with the same name are combined with the correlation *rho*,
         which can either be a :py:class:`Correlation` instance, a dict with correlations defined per
         uncertainty, or a plain float. When *inplace* is *False*, a new instance is returned.
         """
-        return self._apply(operator.truediv, *args, **kwargs)
+        return self._apply(operator.truediv, other=other, rho=rho, inplace=inplace)
 
-    def pow(self, *args, **kwargs):
-        """ pow(other, rho=1.0, inplace=True)
+    def pow(
+        self: Number,
+        other: Number | DeferredResult,
+        rho: float | Correlation | dict[str, float] = 1.0,
+        inplace: bool = True,
+    ) -> Number:
+        """
         Raises by the power of an *other* :py:class:`Number` or :py:class:`DeferredResult` instance,
         propagating all uncertainties. Uncertainties with the same name are combined with the
         correlation *rho*, which can either be a :py:class:`Correlation` instance, a dict with
         correlations defined per uncertainty, or a plain float. When *inplace* is *False*, a new
         instance is returned.
         """
-        return self._apply(operator.pow, *args, **kwargs)
+        return self._apply(operator.pow, other=other, rho=rho, inplace=inplace)
 
-    def _apply(self, op, other, rho=1.0, inplace=True, **kwargs):
+    def _apply(
+        self: Number,
+        op: str | Operation,
+        other: Number | DeferredResult | Correlation,
+        rho: float | Correlation | dict[str, float] = 1.0,
+        inplace: bool = True,
+    ) -> Number:
         # get the python op
         py_op = op
         if isinstance(op, Operation):
             py_op = op.py_op
-            if not py_op:
-                raise RuntimeError(
-                    "cannot apply operation using {} intance that is not configured "
-                    "to combine uncertainties of two operations".format(op),
-                )
+        if not py_op:
+            raise RuntimeError(
+                f"cannot apply operation using {op} intance that is not configured "
+                "to combine uncertainties of two operations",
+            )
 
         # when other is a correlation object and op is (mat)mul, return a deferred result that is to
         # be resolved in the next operation
@@ -920,8 +1014,8 @@ class Number(object):
             if py_op not in correlation_ops:
                 names = ",".join(o.__name__ for o in correlation_ops)
                 raise ValueError(
-                    "cannot apply correlation object {} via operator {}, supported "
-                    "operators are: {}".format(other, py_op.__name__, names),
+                    f"cannot apply correlation object {other} via operator {py_op.__name__}, "
+                    f"supported operators are: {names}",
                 )
             return DeferredResult(self, other)
 
@@ -962,7 +1056,13 @@ class Number(object):
 
         return num
 
-    def __array_ufunc__(self, ufunc, method, *inputs, **kwargs):
+    def __array_ufunc__(
+        self: Number,
+        ufunc: str,
+        method: str,
+        *inputs,
+        **kwargs,
+    ) -> Number:
         # only direct calls of the ufunc are supported
         if method != "__call__":
             return NotImplemented
@@ -998,34 +1098,40 @@ class Number(object):
 
         return result
 
-    def __call__(self, *args, **kwargs):
+    def __call__(
+        self: Number,
+        direction: str = NOMINAL,
+        names: str | Sequence[str] = ALL,
+        unc: bool = False,
+        factor: bool = False,
+    ) -> float | np_array:
         # shorthand for get
-        return self.get(*args, **kwargs)
+        return self.get(direction=direction, names=names, unc=unc, factor=factor)
 
-    def __float__(self):
+    def __float__(self) -> float | np_array:
         # extract nominal value
         return self.nominal
 
-    def __str__(self):
+    def __str__(self: Number) -> str:
         # forward to default str
         return self.str()
 
-    def __repr__(self):
+    def __repr__(self: Number) -> str:
         # forward to default repr
         return self.repr()
 
-    def _repr_latex_(self):
+    def _repr_latex_(self: Number) -> str:
         return self.repr() if self.is_numpy else "${}$".format(self.str(style="latex"))
 
-    def __contains__(self, name):
+    def __contains__(self: Number, name: str) -> bool:
         # check whether name is an uncertainty
         return name in self.uncertainties
 
-    def __nonzero__(self):
+    def __nonzero__(self: Number) -> bool:
         # forward to self.nominal
         return self.nominal.__nonzero__()
 
-    def __eq__(self, other):
+    def __eq__(self: Number, other: Number | float | np_array) -> bool:
         # compare nominal values
         if isinstance(other, Number):
             other = ensure_nominal(other)
@@ -1042,39 +1148,39 @@ class Number(object):
 
         return self.nominal == other
 
-    def __ne__(self, other):
+    def __ne__(self: Number, other: Number | float | np_array) -> bool:
         # opposite of __eq__
         return not self.__eq__(other)
 
-    def __lt__(self, other):
+    def __lt__(self: Number, other: Number | float | np_array) -> bool:
         # compare nominal values
         # numpy: element-wise
         return self.nominal < ensure_nominal(other)
 
-    def __le__(self, other):
+    def __le__(self: Number, other: Number | float | np_array) -> bool:
         # compare nominal values
         # numpy: element-wise
         return self.nominal <= ensure_nominal(other)
 
-    def __gt__(self, other):
+    def __gt__(self: Number, other: Number | float | np_array) -> bool:
         # compare nominal values
         # numpy: element-wise
         return self.nominal > ensure_nominal(other)
 
-    def __ge__(self, other):
+    def __ge__(self: Number, other: Number | float | np_array) -> bool:
         # compare nominal values
         # numpy: element-wise
         return self.nominal >= ensure_nominal(other)
 
-    def __pos__(self):
+    def __pos__(self: Number) -> Number:
         # simply copy
         return self.copy()
 
-    def __neg__(self):
+    def __neg__(self: Number) -> Number:
         # simply copy and flip the nominal value
         return self.copy(nominal=-self.nominal)
 
-    def __abs__(self):
+    def __abs__(self: Number) -> Number:
         # make nominal absolute
         if not is_numpy:
             nominal = abs(self.nominal)
@@ -1083,34 +1189,37 @@ class Number(object):
 
         return self.copy(nominal=nominal)
 
-    def __add__(self, other):
+    def __add__(self: Number, other: Number | float | np_array) -> Number:
         return self.add(other, inplace=False)
 
-    def __radd__(self, other):
+    def __radd__(self: Number, other: Number | DeferredResult | float | np_array) -> Number:
         if isinstance(other, DeferredResult):
             return other.number.add(self, rho=other.correlation, inplace=False)
 
         return ensure_number(other).add(self, inplace=False)
 
-    def __iadd__(self, other):
+    def __iadd__(self: Number, other: Number | float | np_array) -> Number:
         return self.add(other, inplace=True)
 
-    def __sub__(self, other):
+    def __sub__(self: Number, other: Number | float | np_array) -> Number:
         return self.sub(other, inplace=False)
 
-    def __rsub__(self, other):
+    def __rsub__(self: Number, other: Number | DeferredResult | float | np_array) -> Number:
         if isinstance(other, DeferredResult):
             return other.number.sub(self, rho=other.correlation, inplace=False)
 
         return ensure_number(other).sub(self, inplace=False)
 
-    def __isub__(self, other):
+    def __isub__(self: Number, other: Number | float | np_array) -> Number:
         return self.sub(other, inplace=True)
 
-    def __mul__(self, other):
+    def __mul__(self: Number, other: Number | float | np_array) -> Number:
         return self.mul(other, inplace=False)
 
-    def __rmul__(self, other):
+    def __rmul__(
+        self: Number,
+        other: Number | DeferredResult | Correlation | float | np_array,
+    ) -> Number:
         if isinstance(other, Correlation):
             return self.mul(other, inplace=False)
 
@@ -1119,20 +1228,23 @@ class Number(object):
 
         return ensure_number(other).mul(self, inplace=False)
 
-    def __matmul__(self, other):
+    def __matmul__(self: Number, other: Correlation) -> Number:
         # only supported for correlations
         if not isinstance(other, Correlation):
             raise NotImplementedError
 
         return self.mul(other, inplace=False)
 
-    def __rmatmul__(self, other):
+    def __rmatmul__(self: Number, other: Correlation) -> Number:
         return self.__matmul__(other)
 
-    def __imul__(self, other):
+    def __imul__(
+        self: Number,
+        other: Number | DeferredResult | Correlation | float | np_array,
+    ) -> Number:
         return self.mul(other, inplace=True)
 
-    def __div__(self, other):
+    def __div__(self: Number, other: Number | float | np_array) -> Number:
         return self.div(other, inplace=False)
 
     def __rdiv__(self, other):
@@ -1141,31 +1253,31 @@ class Number(object):
 
         return ensure_number(other).div(self, inplace=False)
 
-    def __idiv__(self, other):
+    def __idiv__(self: Number, other: Number | float | np_array) -> Number:
         return self.div(other, inplace=True)
 
-    def __truediv__(self, other):
+    def __truediv__(self: Number, other: Number | float | np_array) -> Number:
         return self.div(other, inplace=False)
 
-    def __rtruediv__(self, other):
+    def __rtruediv__(self: Number, other: Number | DeferredResult | float | np_array) -> Number:
         if isinstance(other, DeferredResult):
             return other.number.div(self, rho=other.correlation, inplace=False)
 
         return ensure_number(other).div(self, inplace=False)
 
-    def __itruediv__(self, other):
+    def __itruediv__(self: Number, other: Number | float | np_array) -> Number:
         return self.div(other, inplace=True)
 
-    def __pow__(self, other):
+    def __pow__(self: Number, other: Number | float | np_array) -> Number:
         return self.pow(other, inplace=False)
 
-    def __rpow__(self, other):
+    def __rpow__(self: Number, other: Number | DeferredResult | float | np_array) -> Number:
         if isinstance(other, DeferredResult):
             return other.number.rpow(self, rho=other.correlation, inplace=False)
 
         return ensure_number(other).pow(self, inplace=False)
 
-    def __ipow__(self, other):
+    def __ipow__(self: Number, other: Number | float | np_array) -> Number:
         return self.pow(other, inplace=True)
 
 
@@ -1195,22 +1307,22 @@ class Correlation(object):
     *default* value is used, which itself defaults to one.
     """
 
-    def __init__(self, *args, **rhos):
-        super(Correlation, self).__init__()
+    def __init__(self: Correlation, *args, **rhos) -> None:
+        super().__init__()
 
         # at most one positional argument is accepted
         if len(args) >= 2:
             raise Exception("only one default value is accepted: {}".format(args))
 
         # store attributes
-        self.default = float(args[0]) if len(args) == 1 else 1.0
-        self.rhos = rhos
+        self.default: int = float(args[0]) if len(args) == 1 else 1.0
+        self.rhos: dict[str, float] = rhos
 
-    def __repr__(self):
-        parts = [str(self.default)] + ["{}={}".format(*tpl) for tpl in self.rhos.items()]
-        return "<{} '{}' at {}>".format(self.__class__.__name__, ", ".join(parts), hex(id(self)))
+    def __repr__(self: Correlation) -> str:
+        parts = [str(self.default)] + [f"{k}={v}" for k, v in self.rhos.items()]
+        return f"<{self.__class__.__name__} '{', '.join(parts)}' at {hex(id(self))}>"
 
-    def get(self, name, default=None):
+    def get(self: Correlation, name: str, default: T | None = None) -> float | T:
         """
         Returns a correlation coefficient rho named *name*. When no coefficient with that name
         exists and *default* is set, which itself defaults to :py:attr:`default`, this value is
@@ -1254,12 +1366,12 @@ class DeferredResult(object):
        The wrapped correlation object.
     """
 
-    def __init__(self, number, correlation):
-        super(DeferredResult, self).__init__()
+    def __init__(self: DeferredResult, number: Number, correlation: Correlation) -> None:
+        super().__init__()
 
         # store attributes
-        self.number = number
-        self.correlation = correlation
+        self.number: Number = number
+        self.correlation: Correlation = correlation
 
 
 # python ops for which uncertainty propagation combining two operands is implemented
@@ -1311,12 +1423,19 @@ class Operation(object):
         List of ufunc objects that this operation handles.
     """
 
-    def __init__(self, function, derivative=None, name=None, py_op=None, ufuncs=None):
-        super(Operation, self).__init__()
+    def __init__(
+        self: Operation,
+        function: Callable,
+        derivative: Callable | None = None,
+        name: str | None = None,
+        py_op: str | None = None,
+        ufuncs: list[str] | None = None,
+    ) -> None:
+        super().__init__()
 
         # check that combined op is known
         if py_op and py_op not in _py_ops and py_op not in _py_ops_reverse:
-            raise ValueError("unknown py_op: {}".format(py_op))
+            raise ValueError(f"unknown py_op: {py_op}")
 
         # store attributes
         self.function = function
@@ -1326,17 +1445,18 @@ class Operation(object):
         self._ufuncs = ufuncs or []
 
         # decorator for setting the derivative
-        def derive(derivative):
+        def derive(derivative: Callable) -> Operation:
             self.derivative = derivative
             return self
+
         self.derive = derive
 
     @property
-    def name(self):
+    def name(self: Operation) -> str:
         return self._name
 
     @property
-    def py_op(self):
+    def py_op(self: Operation) -> str | None:
         if self._py_op in _py_ops:
             return _py_ops[self._py_op]
 
@@ -1345,19 +1465,19 @@ class Operation(object):
 
         return None
 
-    def has_py_op(self):
+    def has_py_op(self: Operation) -> bool:
         return self.py_op is not None
 
     @property
-    def ufuncs(self):
+    def ufuncs(self: Operation) -> list[str]:
         return self._ufuncs
 
-    def __repr__(self):
-        return "<{} '{}' at {}>".format(self.__class__.__name__, self.name, hex(id(self)))
+    def __repr__(self: Operation) -> str:
+        return f"<{self.__class__.__name__} '{self.name}' at {hex(id(self))}>"
 
-    def __call__(self, num, *args, **kwargs):
+    def __call__(self: Operation, num: Number, *args, **kwargs) -> Number:
         if self.derivative is None:
-            raise Exception("cannot run operation '{}', no derivative registered".format(self.name))
+            raise Exception(f"cannot run operation '{self.name}', no derivative registered")
 
         # ensure we deal with a number instance
         num = ensure_number(num)
@@ -1386,7 +1506,7 @@ class Operation(object):
 
 class OpsMeta(type):
 
-    def __contains__(cls, name):
+    def __contains__(cls: type, name: str) -> bool:
         return name in cls._instances
 
 
@@ -1403,13 +1523,19 @@ class ops(object, metaclass=OpsMeta):
     """
 
     # registered operations mapped to their names
-    _instances = {}
+    _instances: dict[str, Operation] = {}
 
     # mapping of ufunc to operation names for faster lookup
-    _ufuncs = {}
+    _ufuncs: dict[str, Callable] = {}
 
     @classmethod
-    def register(cls, function=None, name=None, py_op=None, ufuncs=None):
+    def register(
+        cls: OpsMeta,
+        function: Callable | None = None,
+        name: str | None = None,
+        py_op: str | None = None,
+        ufuncs: list[str] | None = None,
+    ) -> Operation:
         """
         Registers a new math function *function* with *name* and returns an :py:class:`Operation`
         instance. A math function expects a :py:class:`Number` as its first argument, followed by
@@ -1455,7 +1581,7 @@ class ops(object, metaclass=OpsMeta):
                     u = getattr(np, u)
                 _ufuncs.append(u)
 
-        def register(function):
+        def register(function: Callable) -> Operation:
             op = Operation(function, name=name, py_op=py_op, ufuncs=_ufuncs)
 
             # save as class attribute and also in _instances
@@ -1474,21 +1600,21 @@ class ops(object, metaclass=OpsMeta):
         return register(function)
 
     @classmethod
-    def get_operation(cls, name):
+    def get_operation(cls: OpsMeta, name: str) -> Operation:
         """
         Returns an operation that was previously registered with *name*.
         """
         return cls._instances[name]
 
     @classmethod
-    def op(cls, *args, **kwargs):
+    def op(cls: OpsMeta, name: str) -> Operation:
         """
         Shorthand for :py:meth:`get_operation`.
         """
-        return cls.get_operation(*args, **kwargs)
+        return cls.get_operation(name)
 
     @classmethod
-    def get_ufunc_operation(cls, ufunc):
+    def get_ufunc_operation(cls: OpsMeta, ufunc: str | Callable) -> Operation:
         """
         Returns an operation that was previously registered to handle a NumPy *ufunc*, which can be
         a string or the function itself. *None* is returned when no operation was found to handle
@@ -1506,7 +1632,7 @@ class ops(object, metaclass=OpsMeta):
         return cls.get_operation(op_name)
 
     @classmethod
-    def rebuilt_ufunc_cache(cls):
+    def rebuilt_ufunc_cache(cls: OpsMeta) -> None:
         """
         Rebuilts the internal cache of ufuncs.
         """
@@ -1521,7 +1647,10 @@ class ops(object, metaclass=OpsMeta):
 #
 
 @ops.register(py_op="+", ufuncs="add")
-def add(x, n):
+def add(
+    x: Number | float | np_array,
+    n: Number | float | np_array,
+) -> Number | float | np_array:
     """ add(x, n)
     Addition function.
     """
@@ -1529,12 +1658,18 @@ def add(x, n):
 
 
 @add.derive
-def add(x, n):
+def add(
+    x: Number | float | np_array,
+    n: Number | float | np_array,
+) -> float:
     return 1.0
 
 
 @ops.register(py_op="-", ufuncs="subtract")
-def sub(x, n):
+def sub(
+    x: Number | float | np_array,
+    n: Number | float | np_array,
+) -> Number | float | np_array:
     """ sub(x, n)
     Subtraction function.
     """
@@ -1542,12 +1677,18 @@ def sub(x, n):
 
 
 @sub.derive
-def sub(x, n):
+def sub(
+    x: Number | float | np_array,
+    n: Number | float | np_array,
+) -> float:
     return 1.0
 
 
 @ops.register(py_op="*", ufuncs="multiply")
-def mul(x, n):
+def mul(
+    x: Number | float | np_array,
+    n: Number | float | np_array,
+) -> Number | float | np_array:
     """ mul(x, n)
     Multiplication function.
     """
@@ -1555,12 +1696,18 @@ def mul(x, n):
 
 
 @mul.derive
-def mul(x, n):
+def mul(
+    x: Number | float | np_array,
+    n: Number | float | np_array,
+) -> Number | float | np_array:
     return n
 
 
 @ops.register(py_op="/", ufuncs="divide")
-def div(x, n):
+def div(
+    x: Number | float | np_array,
+    n: Number | float | np_array,
+) -> Number | float | np_array:
     """ div(x, n)
     Division function.
     """
@@ -1568,12 +1715,18 @@ def div(x, n):
 
 
 @div.derive
-def div(x, n):
+def div(
+    x: Number | float | np_array,
+    n: Number | float | np_array,
+) -> Number | float | np_array:
     return 1.0 / n
 
 
 @ops.register(py_op="**", ufuncs="power")
-def pow(x, n):
+def pow(
+    x: Number | float | np_array,
+    n: Number | float | np_array,
+) -> Number | float | np_array:
     """ pow(x, n)
     Power function.
     """
@@ -1581,23 +1734,30 @@ def pow(x, n):
 
 
 @pow.derive
-def pow(x, n):
+def pow(
+    x: Number | float | np_array,
+    n: Number | float | np_array,
+) -> Number | float | np_array:
     return n * x**(n - 1.0)
 
 
 @ops.register(ufuncs="exp")
-def exp(x):
+def exp(x: Number | float | np_array) -> Number | float | np_array:
     """ exp(x)
     Exponential function.
     """
     return infer_math(x).exp(x)
 
 
+# :)
 exp.derivative = exp.function
 
 
 @ops.register(ufuncs="log")
-def log(x, base=None):
+def log(
+    x: Number | float | np_array,
+    base: Number | float | np_array | None = None,
+) -> Number | float | np_array:
     """ log(x, base=e)
     Logarithmic function.
     """
@@ -1608,14 +1768,17 @@ def log(x, base=None):
 
 
 @log.derive
-def log(x, base=None):
+def log(
+    x: Number | float | np_array,
+    base: Number | float | np_array | None = None,
+) -> Number | float | np_array:
     if base is None:
         return 1.0 / x
     return 1.0 / (x * infer_math(x).log(base))
 
 
 @ops.register(ufuncs="log10")
-def log10(x):
+def log10(x: Number | float | np_array) -> Number | float | np_array:
     """ log10(x)
     Logarithmic function with base 10.
     """
@@ -1623,12 +1786,12 @@ def log10(x):
 
 
 @log10.derive
-def log10(x):
+def log10(x: Number | float | np_array) -> Number | float | np_array:
     return log.derivative(x, base=10.0)
 
 
 @ops.register(ufuncs="log2")
-def log2(x):
+def log2(x: Number | float | np_array) -> Number | float | np_array:
     """ log2(x)
     Logarithmic function with base 2.
     """
@@ -1636,12 +1799,12 @@ def log2(x):
 
 
 @log2.derive
-def log2(x):
+def log2(x: Number | float | np_array) -> Number | float | np_array:
     return log.derivative(x, base=2.0)
 
 
 @ops.register(ufuncs="sqrt")
-def sqrt(x):
+def sqrt(x: Number | float | np_array) -> Number | float | np_array:
     """ sqrt(x)
     Square root function.
     """
@@ -1649,12 +1812,12 @@ def sqrt(x):
 
 
 @sqrt.derive
-def sqrt(x):
+def sqrt(x: Number | float | np_array) -> Number | float | np_array:
     return 1.0 / (2.0 * infer_math(x).sqrt(x))
 
 
 @ops.register(ufuncs="sin")
-def sin(x):
+def sin(x: Number | float | np_array) -> Number | float | np_array:
     """ sin(x)
     Trigonometric sin function.
     """
@@ -1662,12 +1825,12 @@ def sin(x):
 
 
 @sin.derive
-def sin(x):
+def sin(x: Number | float | np_array) -> Number | float | np_array:
     return infer_math(x).cos(x)
 
 
 @ops.register(ufuncs="cos")
-def cos(x):
+def cos(x: Number | float | np_array) -> Number | float | np_array:
     """ cos(x)
     Trigonometric cos function.
     """
@@ -1675,12 +1838,12 @@ def cos(x):
 
 
 @cos.derive
-def cos(x):
+def cos(x: Number | float | np_array) -> Number | float | np_array:
     return -infer_math(x).sin(x)
 
 
 @ops.register(ufuncs="tan")
-def tan(x):
+def tan(x: Number | float | np_array) -> Number | float | np_array:
     """ tan(x)
     Trigonometric tan function.
     """
@@ -1688,12 +1851,12 @@ def tan(x):
 
 
 @tan.derive
-def tan(x):
+def tan(x: Number | float | np_array) -> Number | float | np_array:
     return 1.0 / infer_math(x).cos(x)**2.0
 
 
 @ops.register(ufuncs="arcsin")
-def asin(x):
+def asin(x: Number | float | np_array) -> Number | float | np_array:
     """ asin(x)
     Trigonometric arc sin function.
     """
@@ -1704,12 +1867,12 @@ def asin(x):
 
 
 @asin.derive
-def asin(x):
+def asin(x: Number | float | np_array) -> Number | float | np_array:
     return 1.0 / infer_math(x).sqrt(1 - x**2.0)
 
 
 @ops.register(ufuncs="arccos")
-def acos(x):
+def acos(x: Number | float | np_array) -> Number | float | np_array:
     """ acos(x)
     Trigonometric arc cos function.
     """
@@ -1720,12 +1883,12 @@ def acos(x):
 
 
 @acos.derive
-def acos(x):
+def acos(x: Number | float | np_array) -> Number | float | np_array:
     return -1.0 / infer_math(x).sqrt(1 - x**2.0)
 
 
 @ops.register(ufuncs="arctan")
-def atan(x):
+def atan(x: Number | float | np_array) -> Number | float | np_array:
     """ tan(x)
     Trigonometric arc tan function.
     """
@@ -1736,12 +1899,12 @@ def atan(x):
 
 
 @atan.derive
-def atan(x):
+def atan(x: Number | float | np_array) -> Number | float | np_array:
     return 1.0 / (1.0 + x**2.0)
 
 
 @ops.register(ufuncs="sinh")
-def sinh(x):
+def sinh(x: Number | float | np_array) -> Number | float | np_array:
     """ sinh(x)
     Hyperbolic sin function.
     """
@@ -1749,12 +1912,12 @@ def sinh(x):
 
 
 @sinh.derive
-def sinh(x):
+def sinh(x: Number | float | np_array) -> Number | float | np_array:
     return infer_math(x).cosh(x)
 
 
 @ops.register(ufuncs="cosh")
-def cosh(x):
+def cosh(x: Number | float | np_array) -> Number | float | np_array:
     """ cosh(x)
     Hyperbolic cos function.
     """
@@ -1762,12 +1925,12 @@ def cosh(x):
 
 
 @cosh.derive
-def cosh(x):
+def cosh(x: Number | float | np_array) -> Number | float | np_array:
     return infer_math(x).sinh(x)
 
 
 @ops.register(ufuncs="tanh")
-def tanh(x):
+def tanh(x: Number | float | np_array) -> Number | float | np_array:
     """ tanh(x)
     Hyperbolic tan function.
     """
@@ -1775,12 +1938,12 @@ def tanh(x):
 
 
 @tanh.derive
-def tanh(x):
+def tanh(x: Number | float | np_array) -> Number | float | np_array:
     return 1.0 / infer_math(x).cosh(x)**2.0
 
 
 @ops.register(ufuncs="arcsinh")
-def asinh(x):
+def asinh(x: Number | float | np_array) -> Number | float | np_array:
     """ asinh(x)
     Hyperbolic arc sin function.
     """
@@ -1791,7 +1954,7 @@ def asinh(x):
 
 
 @ops.register(ufuncs="arccosh")
-def acosh(x):
+def acosh(x: Number | float | np_array) -> Number | float | np_array:
     """ acosh(x)
     Hyperbolic arc cos function.
     """
@@ -1806,7 +1969,7 @@ acosh.derivative = asinh.function
 
 
 @ops.register(ufuncs="arctanh")
-def atanh(x):
+def atanh(x: Number | float | np_array) -> Number | float | np_array:
     """ atanh(x)
     Hyperbolic arc tan function.
     """
@@ -1817,7 +1980,7 @@ def atanh(x):
 
 
 @atanh.derive
-def atanh(x):
+def atanh(x: Number | float | np_array) -> Number | float | np_array:
     return 1.0 / (1.0 - x**2.0)
 
 
@@ -1825,7 +1988,7 @@ def atanh(x):
 # helper functions
 #
 
-def try_float(x):
+def try_float(x: Any) -> float | None:
     """
     Tries to convert a value *x* to float and returns it on success, and *None* otherwise.
     """
@@ -1835,7 +1998,7 @@ def try_float(x):
         return None
 
 
-def ensure_number(num, *args, **kwargs):
+def ensure_number(num: Any, *args, **kwargs) -> Number:
     """
     Returns *num* again if it is an instance of :py:class:`Number`, or uses all passed arguments to
     create one and returns it.
@@ -1843,7 +2006,7 @@ def ensure_number(num, *args, **kwargs):
     return num if isinstance(num, Number) else Number(num, *args, **kwargs)
 
 
-def ensure_nominal(nominal):
+def ensure_nominal(nominal: Number | float | np_array) -> float | np_array:
     """
     Returns *nominal* again if it is not an instance of :py:class:`Number`, or returns its nominal
     value.
@@ -1851,14 +2014,14 @@ def ensure_nominal(nominal):
     return nominal if not isinstance(nominal, Number) else nominal.nominal
 
 
-def is_numpy(x):
+def is_numpy(x: Any) -> bool:
     """
     Returns *True* when numpy is available on your system and *x* is a numpy type.
     """
     return HAS_NUMPY and type(x).__module__ == np.__name__
 
 
-def is_ufloat(x):
+def is_ufloat(x: Any) -> bool:
     """
     Returns *True* when the "uncertainties" package is available on your system and *x* is a
     ``ufloat``.
@@ -1866,7 +2029,10 @@ def is_ufloat(x):
     return HAS_UNCERTAINTIES and isinstance(x, _uncs.core.AffineScalarFunc)
 
 
-def parse_ufloat(x, default_tag=Number.DEFAULT):
+def parse_ufloat(
+    x: unc_variable,
+    default_tag: str = Number.DEFAULT,
+) -> tuple[float, dict[str, float]]:
     """
     Takes a ``ufloat`` object *x* from the "uncertainties" package and returns a tuple with two
     elements containing its nominal value and a dictionary with its uncertainties. When the error
@@ -1888,7 +2054,7 @@ def parse_ufloat(x, default_tag=Number.DEFAULT):
     return x.nominal_value, uncertainties
 
 
-def infer_math(x):
+def infer_math(x: ModuleType) -> ModuleType:
     """
     Returns the numpy module when :py:func:`is_numpy` for *x* is *True*, and the math module
     otherwise.
@@ -1896,7 +2062,7 @@ def infer_math(x):
     return np if is_numpy(x) else math
 
 
-def make_list(obj, cast=True):
+def make_list(obj: Any, cast: bool = True) -> list:
     """
     Converts an object *obj* to a list and returns it. Objects of types *tuple* and *set* are
     converted if *cast* is *True*. Otherwise, and for all other types, *obj* is put in a new list.
@@ -1910,7 +2076,10 @@ def make_list(obj, cast=True):
     return [obj]
 
 
-def calculate_uncertainty(terms, rho=0.0):
+def calculate_uncertainty(
+    terms: Sequence[float | np_array],
+    rho: float | dict[str, float] = 0.0,
+) -> float | np_array:
     """
     Generically calculates the uncertainty of a quantity that depends on multiple *terms*. Each term
     is expected to be a 2-tuple containing the derivative and the uncertainty of the term.
@@ -1949,7 +2118,14 @@ def calculate_uncertainty(terms, rho=0.0):
     return variance**0.5
 
 
-def combine_uncertainties(op, unc1, unc2, nom1=None, nom2=None, rho=0.0):
+def combine_uncertainties(
+    op: Operation | str,
+    unc1: float | np_array,
+    unc2: float | np_array,
+    nom1: float | np_array | None = None,
+    nom2: float | np_array | None = None,
+    rho: float = 0.0,
+) -> float | np_array:
     """
     Combines two uncertainties *unc1* and *unc2* according to an operator *op* which must be either
     ``"+"``, ``"-"``, ``"*"``, ``"/"``, or ``"**"``. The three latter operators require that you
@@ -1967,22 +2143,22 @@ def combine_uncertainties(op, unc1, unc2, nom1=None, nom2=None, rho=0.0):
         f = op
         op = _py_ops_reverse[op]
     else:
-        raise ValueError("unknown operator: {}".format(op))
+        raise ValueError(f"unknown operator: {op}")
 
     # when numpy arrays, the shapes of unc and nom must match
     if is_numpy(unc1) and is_numpy(nom1) and unc1.shape != nom1.shape:
-        raise ValueError("the shape of unc1 and nom1 must be equal, found {} and {}".format(
-            unc1.shape, nom1.shape,
-        ))
+        raise ValueError(
+            f"the shape of unc1 and nom1 must be equal, found {unc1.shape} and {nom1.shape}",
+        )
     if is_numpy(unc2) and is_numpy(nom2) and unc2.shape != nom2.shape:
-        raise ValueError("the shape of unc2 and nom2 must be equal, found {} and {}".format(
-            unc2.shape, nom2.shape,
-        ))
+        raise ValueError(
+            f"the shape of unc2 and nom2 must be equal, found {unc2.shape} and {nom2.shape}",
+        )
 
     # prepare values for combination, depends on operator
     if op in ("*", "/", "**"):
         if nom1 is None or nom2 is None:
-            raise ValueError("operator '{}' requires nominal values".format(op))
+            raise ValueError(f"operator '{op}' requires nominal values")
         # numpy-safe conversion to float
         nom1 = nom1 * 1.0
         nom2 = nom2 * 1.0
@@ -2035,10 +2211,11 @@ def combine_uncertainties(op, unc1, unc2, nom1=None, nom2=None, rho=0.0):
     # flip rho for sub and div
     if op in ("-", "/"):
         rho = -rho
+
     return nom * (unc1**2.0 + unc2**2.0 + 2.0 * rho * unc1 * unc2)**0.5
 
 
-def split_value(val):
+def split_value(val: float | np_array) -> tuple[float, float] | tuple[np_array, np_array]:
     """
     Splits a value *val* into its significand and decimal exponent (magnitude) and returns them in a
     2-tuple. *val* might also be a numpy array. Example:
@@ -2074,7 +2251,7 @@ def split_value(val):
     return (sig, mag)
 
 
-def _match_precision(val, ref, **kwargs):
+def _match_precision(val: float, ref: float, **kwargs) -> str:
     # extract settings not meant for quantize
     force_float = kwargs.pop("force_float", False)
 
@@ -2091,7 +2268,7 @@ def _match_precision(val, ref, **kwargs):
     return str(val.quantize(ref, **kwargs))
 
 
-def match_precision(val, ref, **kwargs):
+def match_precision(val: float | np_array, ref: float | np_array, **kwargs) -> str | np_array:
     """ match_precision(val, ref, force_float=False, **kwargs)
     Returns a string version of a value *val* matching the significant digits as given in *ref*.
     *val* might also be a numpy array. Unless *force_float* is *True*, the returned string might
@@ -2125,7 +2302,7 @@ def match_precision(val, ref, **kwargs):
     return ret
 
 
-def infer_uncertainty_precision(sig, mag, method):
+def infer_uncertainty_precision(sig: float | np_array, mag: float | np_array, method: str | int):
     """
     Infers the precision of a number given its significand *sig* and mangnitude *mag* for a certain
     *method*. The precision corresponds to the amount of significant digits to keep and, in
@@ -2139,9 +2316,7 @@ def infer_uncertainty_precision(sig, mag, method):
 
     if isinstance(method, int):
         if method <= 0:
-            raise ValueError("cannot infer precision for non-positive method value '{}'".format(
-                method,
-            ))
+            raise ValueError(f"cannot infer precision for non-positive method value '{method}'")
 
         prec = method
         if _is_numpy:
@@ -2168,7 +2343,7 @@ def infer_uncertainty_precision(sig, mag, method):
             if not is_numpy(mag) or sig.shape != mag.shape:
                 raise ValueError(
                     "sig and mag must both be NumPy arrays with the same shape, got\n"
-                    "{}\nand\n{}".format(sig, mag),
+                    f"{sig}\nand\n{mag}",
                 )
 
             prec = np.ones(sig.shape, int) * prec
@@ -2185,7 +2360,7 @@ def infer_uncertainty_precision(sig, mag, method):
                 prec[is_large] += 1
 
     else:
-        raise ValueError("unknown method for inferring precision: {}".format(method))
+        raise ValueError(f"unknown method for inferring precision: {method}")
 
     return prec, sig, mag
 
@@ -2194,7 +2369,12 @@ def infer_uncertainty_precision(sig, mag, method):
 infer_uncertainty_precision.uncertainty_methods = ["pdg", "pdg+1", "publication", "pub"]
 
 
-def round_uncertainty(unc, method=1, precision=None, **kwargs):
+def round_uncertainty(
+    unc: float | np_array,
+    method: int | str = 1,
+    precision: int | np_array | None = None,
+    **kwargs,
+) -> tuple[float, int, int] | np_array:
     """
     Rounds an uncertainty *unc* following a specific *method* and returns a 3-tuple containing the
     significant digits as a string, the decimal magnitude that is required to recover the
@@ -2280,7 +2460,13 @@ def round_uncertainty(unc, method=1, precision=None, **kwargs):
     return (digits, mag, len(digits) if not _is_numpy else np.char.str_len(digits))
 
 
-def round_value(val, unc=None, method=0, align_precision=True, **kwargs):
+def round_value(
+    val: Number | float | np_array,
+    unc: float | np_array | tuple[float | np_array] | None = None,
+    method: str | None = 0,
+    align_precision: bool = True,
+    **kwargs,
+) -> tuple[str, str | list | tuple | None, int] | tuple[np_array, np_array | None, np_array]:
     """
     Rounds a number *val* with an uncertainty *unc* which can be a single float or array (symmetric)
     or a 2-tuple (asymmetric up / down) of floats or arrays. It also supports a list of these values
@@ -2355,24 +2541,24 @@ def round_value(val, unc=None, method=0, align_precision=True, **kwargs):
         for i, u in enumerate(list(unc)):
             asym = isinstance(u, tuple)
             if asym and len(u) != 2:
-                raise ValueError("asymmetric uncertainties must provided as 2-tuple: {}".format(u))
+                raise ValueError(f"asymmetric uncertainties must provided as 2-tuple: {u}")
 
             _us = list(u) if asym else [u]
             if not _is_numpy:
                 for _u in _us:
                     if not try_float(_u):
-                        raise TypeError("uncertainties must be convertible to float: {}".format(_u))
+                        raise TypeError(f"uncertainties must be convertible to float: {_u}")
                     if _u < 0:
-                        raise ValueError("uncertainties must be positive: {}".format(_u))
+                        raise ValueError(f"uncertainties must be positive: {_u}")
 
             else:
                 for j, _u in enumerate(list(_us)):
                     if not is_numpy(_u):
                         if not try_float(_u):
-                            raise TypeError("uncertainty is neither array nor float: {}".format(_u))
+                            raise TypeError(f"uncertainty is neither array nor float: {_u}")
                         _us[j] = _u = _u * np.ones_like(val)
                     if (_u < 0).any():
-                        raise ValueError("uncertainties must be positive: {}".format(_u))
+                        raise ValueError(f"uncertainties must be positive: {_u}")
                 unc[i] = tuple(_us) if asym else _us[0]
 
             # store in flat list of uncertainty values
@@ -2383,8 +2569,8 @@ def round_value(val, unc=None, method=0, align_precision=True, **kwargs):
         # uncertainty based rounding
         if not has_unc:
             raise ValueError(
-                "cannot perform uncertainty based rounding with method '{}' "
-                "without uncertainties on value {}".format(method, val),
+                f"cannot perform uncertainty based rounding with method '{method}' "
+                f"without uncertainties on value {val}",
             )
 
         # use the uncertainty with the smallest magnitude
@@ -2425,7 +2611,7 @@ def round_value(val, unc=None, method=0, align_precision=True, **kwargs):
         if isinstance(method, str):
             m = re.match(r"^\%.*\.(\d+)f$", method)
             if not m:
-                raise ValueError("format string should end with '.<int>f': {}".format(method))
+                raise ValueError(f"format string should end with '.<int>f': {method}")
             method = -int(m.group(1))
 
         # trivial case
@@ -2435,7 +2621,7 @@ def round_value(val, unc=None, method=0, align_precision=True, **kwargs):
             ref_mag = np.ones_like(val, int) * method
 
     else:
-        raise ValueError("unknown method for rounding value: {}".format(method))
+        raise ValueError(f"unknown method for rounding value: {method}")
 
     # round the central value and uncertainties
     apply_rounding = lambda v: match_precision(v * 10.0**(-ref_mag), "1", **kwargs)
@@ -2449,7 +2635,12 @@ def round_value(val, unc=None, method=0, align_precision=True, **kwargs):
     return (val_str, (unc_strs if multi else unc_strs[0]) if has_unc else None, ref_mag)
 
 
-def format_multiplicative_uncertainty(num, unc="default", digits=3, asym_threshold=0.2):
+def format_multiplicative_uncertainty(
+    num: Number,
+    unc: str | Sequence[str] = Number.DEFAULT,
+    digits: int = 3,
+    asym_threshold: float = 0.2,
+) -> str:
     """
     Creates an inline representation of an uncertainty named *unc* of a :py:class:`Number` *num* and
     returns it. The representation makes use of the mulitiplicative factors that would scale the
@@ -2491,7 +2682,7 @@ si_refixes = dict(zip(
 ))
 
 
-def infer_si_prefix(f):
+def infer_si_prefix(f: float) -> tuple[str, int]:
     """
     Infers the SI prefix of a value *f* and returns the string label and decimal magnitude in a
     2-tuple. Example:
@@ -2504,12 +2695,17 @@ def infer_si_prefix(f):
     """
     if f == 0:
         return "", 0
-    else:
-        mag = 3 * int(math.log10(abs(float(f))) // 3)
-        return si_refixes[mag], mag
+
+    mag = 3 * int(math.log10(abs(float(f))) // 3)
+    return si_refixes[mag], mag
 
 
-def create_hep_data_representer(method=None, force_asymmetric=False, force_float=False, **kwargs):
+def create_hep_data_representer(
+    method: str | int | None = None,
+    force_asymmetric: bool = False,
+    force_float: bool = False,
+    **kwargs,
+) -> Callable:
     """
     Creates a PyYAML representer function that encodes a :py:class:`Number` as a data structure that
     is compatible to the `HEPData
