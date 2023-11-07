@@ -72,7 +72,7 @@ class typed(property):
 
     .. code-block:: python
 
-         class MyClass(object):
+        class MyClass(object):
 
             def __init__(self):
                 self._foo = None
@@ -1294,7 +1294,7 @@ class Correlation(object):
 
     def __repr__(self: Correlation) -> str:
         parts = [str(self.default)] + [f"{k}={v}" for k, v in self.rhos.items()]
-        return f"<{self.__class__.__name__} '{', '.join(parts)}' at {hex(id(self))}>"
+        return f"<{self.__class__.__name__} '{', '.join(parts)}' at {hex(id(self))}>"  # noqa
 
     def get(self: Correlation, name: str, default: T | None = None) -> float | T:
         """
@@ -1330,14 +1330,16 @@ class DeferredResult(object):
         # -> '3125.00 +-11842.54'
 
     .. py:attribute:: number
-       type: Number
 
-       The wrapped number object.
+        type: Number
+
+        The wrapped number object.
 
     .. py:attribute:: correlation
-       type: Correlation
 
-       The wrapped correlation object.
+        type: Correlation
+
+        The wrapped correlation object.
     """
 
     def __init__(self: DeferredResult, number: Number, correlation: Correlation) -> None:
