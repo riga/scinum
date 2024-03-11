@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-
 __all__ = ["TestCase"]
-
 
 import sys
 import math
@@ -15,7 +13,7 @@ from collections import OrderedDict
 from typing import Callable
 
 from scinum import (
-    Number, Correlation, DeferredResult, ops, HAS_NUMPY, HAS_UNCERTAINTIES, split_value,
+    Number, Correlation, DeferredResult, ops, HAS_NUMPY, HAS_UNCERTAINTIES, UP, DOWN, split_value,
     match_precision, calculate_uncertainty, round_uncertainty, round_value, infer_si_prefix,
     create_hep_data_representer, format_multiplicative_uncertainty,
 )
@@ -25,9 +23,6 @@ if HAS_NUMPY:
 
 if HAS_UNCERTAINTIES:
     from uncertainties import ufloat
-
-UP = Number.UP
-DOWN = Number.DOWN
 
 
 def if_numpy(func: Callable[["TestCase"], None]) -> Callable[["TestCase"], None]:
@@ -402,7 +397,6 @@ class TestCase(unittest.TestCase):
 
     def test_ops_registration(self: TestCase) -> None:
         self.assertTrue("exp" in ops)
-
         self.assertFalse("foo" in ops)
 
         @ops.register(ufuncs="absolute")
@@ -416,7 +410,7 @@ class TestCase(unittest.TestCase):
         if HAS_NUMPY:
             self.assertEqual(foo.ufuncs[0], np.abs)
             self.assertEqual(foo.ufuncs[0].__name__, "absolute")
-            self.assertEqual(ops.get_ufunc_operation("abs"), foo)
+            self.assertEqual(ops.get_ufunc_operation("absolute"), foo)
 
         @foo.derive
         def foo(x, a, b, c):
@@ -736,7 +730,7 @@ class TestCase(unittest.TestCase):
         self.assertEqual(n.u("B"), (2.0, 2.0))
 
     def test_hep_data_export(self: TestCase) -> None:
-        import yaml
+        import yaml  # type: ignore[import-untyped]
 
         yaml.add_representer(Number, create_hep_data_representer())
 

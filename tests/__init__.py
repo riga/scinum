@@ -1,9 +1,9 @@
 # coding: utf-8
 # flake8: noqa
 
+from __future__ import annotations
 
-__all__ = []
-
+__all__: list[str] = []
 
 # adjust the path to import scinum
 import os

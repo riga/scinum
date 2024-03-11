@@ -12,3 +12,5 @@ docs/_build
 .ipynb_checkpoints
 .coverage
 coverage*.xml
+.vscode
+.python-version
