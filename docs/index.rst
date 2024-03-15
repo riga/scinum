@@ -19,6 +19,22 @@ Classes
    :members:
 
 
+``UncertaintyDirection``
+-------------------------
+
+.. autoclass:: UncertaintyDirection
+   :member-order: bysource
+   :members:
+
+
+``UncertaintyFlag``
+--------------------
+
+.. autoclass:: UncertaintyFlag
+   :member-order: bysource
+   :members:
+
+
 ``Correlation``
 ---------------
 
@@ -195,21 +211,6 @@ Other attributes
    type: bool
 
    A flag that is *True* when PyYAML is available on your system, *False* otherwise.
-
-.. py:attribute:: NOMINAL
-   type: string
-
-   Shorthand for :py:attr:`Number.NOMINAL`.
-
-.. py:attribute:: UP
-   type: string
-
-   Shorthand for :py:attr:`Number.UP`.
-
-.. py:attribute:: DOWN
-   type: string
-
-   Shorthand for :py:attr:`Number.DOWN`.
 
 .. |colab| image:: https://colab.research.google.com/assets/colab-badge.svg
    :target: https://colab.research.google.com/github/riga/scinum/blob/master/example.ipynb

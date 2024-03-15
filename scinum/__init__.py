@@ -17,7 +17,7 @@ __version__ = "2.1.0"
 __all__ = [
     "Number", "Correlation", "DeferredResult", "Operation",
     "ops", "style_dict",
-    "NOMINAL", "UP", "DOWN", "N", "U", "D",
+    "NOMINAL", "UP", "DOWN", "DEFAULT", "ALL",
 ]
 
 import math
@@ -25,6 +25,7 @@ import re
 import functools
 import operator
 import types
+import enum
 import decimal
 from collections import defaultdict
 from types import ModuleType
@@ -170,6 +171,55 @@ class typed(property):
         return fdel
 
 
+class UncertaintyDirection(enum.Enum):
+    """
+    Enumeration of uncertainty directions.
+    """
+
+    NOMINAL = "nominal"
+    UP = "up"
+    DOWN = "down"
+
+    @classmethod
+    def check(cls, other: Any) -> bool:
+        return other in (cls.NOMINAL, cls.UP, cls.DOWN)
+
+    def __str__(self) -> str:
+        return self.value
+
+    def __eq__(self, other: Any) -> bool:
+        return str(self) == other
+
+    def __hash__(self) -> int:
+        return hash(self.value)
+
+
+class UncertaintyFlag(enum.Enum):
+    """
+    Enumeration of uncertainty flags.
+    """
+
+    DEFAULT = "default"
+    ALL = "all"
+
+    def __str__(self) -> str:
+        return self.value
+
+    def __eq__(self, other: Any) -> bool:
+        return str(self) == other
+
+    def __hash__(self) -> int:
+        return hash(self.value)
+
+
+# shorthands
+NOMINAL = UncertaintyDirection.NOMINAL
+UP = UncertaintyDirection.UP
+DOWN = UncertaintyDirection.DOWN
+DEFAULT = UncertaintyFlag.DEFAULT
+ALL = UncertaintyFlag.ALL
+
+
 class Number(object):
     """ __init__(nominal=0.0, uncertainties={})
     Implementation of a scientific number, i.e., a *nominal* value with named *uncertainties*.
@@ -267,54 +317,6 @@ class Number(object):
         The default style name (``"plain"``) that is used in :py:meth:`str()` when no style argument
         was passed.
 
-    .. py:classattribute:: DEFAULT
-
-        type: string
-
-        Constant that denotes the default uncertainty (``"default"``).
-
-    .. py:classattribute:: ALL
-
-        type: string
-
-        Constant that denotes all uncertainties (``"all"``).
-
-    .. py:classattribute:: NOMINAL
-
-        type: string
-
-        Constant that denotes the nominal value (``"nominal"``).
-
-    .. py:classattribute:: UP
-
-        type: string
-
-        Constant that denotes the up direction (``"up"``).
-
-    .. py:classattribute:: DOWN
-
-        type: string
-
-        Constant that denotes the down direction (``"down"``).
-
-    .. py:classattribute:: N
-
-        type: string
-
-        Shorthand for :py:attr:`NOMINAL`.
-
-    .. py:classattribute:: U
-
-        type: string
-
-        Shorthand for :py:attr:`UP`.
-
-    .. py:classattribute:: D
-
-        type: string
-
-        Shorthand for :py:attr:`DOWN`.
-
     .. py:attribute:: nominal
 
         type: float
@@ -353,19 +355,12 @@ class Number(object):
         ``numpy.float32`` when NumPy is available, *None* otherwise.
     """
 
-    # uncertainty flags
-    DEFAULT = "default"
-    ALL = "all"
-
-    # uncertainty directions
-    NOMINAL = "nominal"
-    UP = "up"
-    DOWN = "down"
-
-    # aliases
-    N = NOMINAL
-    U = UP
-    D = DOWN
+    # uncertainty directions and flags for backwards compatibility
+    NOMINAL = UncertaintyDirection.NOMINAL
+    UP = UncertaintyDirection.UP
+    DOWN = UncertaintyDirection.DOWN
+    DEFAULT = UncertaintyFlag.DEFAULT
+    ALL = UncertaintyFlag.ALL
 
     default_format: str | int = "%s"
     default_style = "plain"
@@ -456,6 +451,9 @@ class Number(object):
 
         _uncertainties: OutUncsType = {}
         for name, val in uncertainties.items():
+            if isinstance(name, UncertaintyFlag):
+                name = str(name)
+
             # check the name
             if not isinstance(name, str):
                 raise TypeError(f"invalid uncertainty name: {name}")
@@ -520,8 +518,8 @@ class Number(object):
 
     def get_uncertainty(
         self,
-        name: str = DEFAULT,
-        direction: str = NOMINAL,
+        name: UncertaintyFlag | str = UncertaintyFlag.DEFAULT,
+        direction: UncertaintyDirection | str = UncertaintyDirection.NOMINAL,
         *,
         default: T | None = None,
     ) -> OutValueType | OutUncType | T:
@@ -530,8 +528,9 @@ class Number(object):
         *direction* is set, the particular value is returned instead of a 2-tuple. In case no
         uncertainty was found and *default* is not *None*, that value is returned.
         """
-        if direction not in (self.UP, self.DOWN, self.NOMINAL):
-            raise ValueError(f"unknown direction: {direction}")
+        if isinstance(name, UncertaintyFlag):
+            name = str(name)
+        direction = UncertaintyDirection(direction)
 
         if name not in self.uncertainties:
             if default is not None:
@@ -543,12 +542,12 @@ class Number(object):
         if direction == self.NOMINAL:
             return unc
 
-        return unc[0 if direction == self.UP else 1]
+        return unc[0 if direction == UncertaintyDirection.UP else 1]
 
     def u(
         self,
-        name: str = DEFAULT,
-        direction: str = NOMINAL,
+        name: UncertaintyFlag | str = UncertaintyFlag.DEFAULT,
+        direction: UncertaintyDirection | str = UncertaintyDirection.NOMINAL,
         *,
         default: T | None = None,
     ) -> OutValueType | OutUncType | T:
@@ -559,7 +558,7 @@ class Number(object):
 
     def set_uncertainty(
         self,
-        name: str,
+        name: UncertaintyFlag | str,
         value: InValueType | InUncType,
     ) -> None:
         """
@@ -571,7 +570,7 @@ class Number(object):
 
     def combine_uncertaintes(
         self,
-        combine: str | dict[str, Sequence[str]] = ALL,
+        combine: UncertaintyFlag | str | dict[str, Sequence[str]] = UncertaintyFlag.ALL,
     ) -> Number:
         """ combine_uncertaintes(combine_uncs=ALL)
         Returns a copy of this number with certain uncertainties combined. *combine* can be a
@@ -582,12 +581,12 @@ class Number(object):
         """
         # create a map that contains all uncertainties
         combine_map: dict[str, list[str] | None] = {}
-        if combine == self.ALL:
-            combine_map[self.DEFAULT] = list(self.uncertainties.keys())
+        if combine == UncertaintyFlag.ALL:
+            combine_map[str(UncertaintyFlag.DEFAULT)] = list(self.uncertainties.keys())
         elif isinstance(combine, dict):
             seen_uncs: set = set()
             for new_name, names in combine.items():
-                if names == self.ALL:
+                if names == UncertaintyFlag.ALL:
                     combine_map[new_name] = list(self.uncertainties.keys())
                 elif isinstance(names, (list, tuple)):
                     combine_map[new_name] = list(names)
@@ -607,7 +606,11 @@ class Number(object):
             uncs[new_name] = (
                 self.uncertainties[new_name]
                 if _names is None
-                else self.get(direction=(self.UP, self.DOWN), names=_names, unc=True)
+                else self.get(
+                    direction=(UncertaintyDirection.UP, UncertaintyDirection.DOWN),
+                    names=_names,
+                    unc=True,
+                )
             )
 
         return self.__class__(self.nominal, uncs, **self._init_kwargs())  # type: ignore[arg-type]
@@ -632,7 +635,7 @@ class Number(object):
     def str(
         self,
         format: str | int | None = None,
-        combine_uncs: str | dict[str, Sequence[str]] | None = None,
+        combine_uncs: UncertaintyFlag | str | dict[str, Sequence[str]] | None = None,
         unit: str | None = None,
         scientific: bool = False,
         si: bool = False,
@@ -675,7 +678,7 @@ class Number(object):
             n.str("%.1f")              # -> '17.3 +-1.2 (a) +-0.5 (b)'
             n.str("publication")       # -> '17.32 +-1.16 (a) +-0.45 (b)'
             n.str("pdg")               # -> '17.3 +-1.2 (a) +-0.5 (b)'
-            n.str(combine_uncs="all")  # -> 'TODO'
+            n.str(combine_uncs="all")  # -> '17.321 +-1.2434520497389514'
 
             n = Number(8848, 10)
             n.str(unit="m")                           # -> "8848.0 +-10.0 m"
@@ -841,8 +844,10 @@ class Number(object):
 
     def get(
         self,
-        direction: str | tuple[str] = NOMINAL,
-        names: str | Sequence[str] = ALL,
+        direction:
+            UncertaintyDirection | str |
+            tuple[UncertaintyDirection | str, UncertaintyDirection | str] = UncertaintyDirection.NOMINAL,  # noqa
+        names: UncertaintyFlag | str | Sequence[str] = UncertaintyFlag.ALL,
         unc: bool = False,
         factor: bool = False,
     ) -> OutValueType | OutUncType:
@@ -856,35 +861,35 @@ class Number(object):
         """
         if (
             isinstance(direction, tuple) and
-            all(d in (self.NOMINAL, self.UP, self.DOWN) for d in direction)  # type: ignore[union-attr] # noqa
+            all(UncertaintyDirection.check(d) for d in direction)  # type: ignore[union-attr]
         ):
             return tuple(  # type: ignore[return-value]
                 self.get(direction=d, names=names, unc=unc, factor=factor)
                 for d in direction  # type: ignore[union-attr]
             )
 
-        if direction == self.NOMINAL:
+        if direction == UncertaintyDirection.NOMINAL:
             value = self.nominal
 
-        elif direction in (self.UP, self.DOWN):
+        elif direction in (UncertaintyDirection.UP, UncertaintyDirection.DOWN):
             # find uncertainties to take into account
-            if names == self.ALL:
-                names = self.uncertainties.keys()
+            if names == UncertaintyFlag.ALL:
+                _names = self.uncertainties.keys()
             else:
-                names = make_list(names)
-                if any(name not in self.uncertainties for name in names):
-                    unknown = list(set(names) - set(self.uncertainties.keys()))
+                _names = make_list(names)
+                if any(name not in self.uncertainties for name in _names):
+                    unknown = list(set(_names) - set(self.uncertainties.keys()))
                     raise ValueError(f"unknown uncertainty name(s): {unknown}")
 
             # calculate the combined uncertainty without correlation
-            idx = int(direction == self.DOWN)
-            uncs = [self.uncertainties[name][idx] for name in names]
+            idx = int(direction == UncertaintyDirection.DOWN)
+            uncs = [self.uncertainties[name][idx] for name in _names]
             combined_unc = sum(u**2.0 for u in uncs)**0.5
 
             # determine the output value
             if unc:
                 value = combined_unc
-            elif direction == self.UP:
+            elif direction == UncertaintyDirection.UP:
                 value = self.nominal + combined_unc
             else:
                 value = self.nominal - combined_unc
@@ -1100,8 +1105,8 @@ class Number(object):
 
     def __call__(
         self,
-        direction: str = NOMINAL,
-        names: str | Sequence[str] = ALL,
+        direction: UncertaintyDirection | str = UncertaintyDirection.NOMINAL,
+        names: UncertaintyFlag | str | Sequence[UncertaintyFlag | str] = UncertaintyFlag.ALL,
         unc: bool = False,
         factor: bool = False,
     ) -> OutValueType | OutUncType:
@@ -1279,15 +1284,6 @@ class Number(object):
 
     def __ipow__(self, other: Number | DeferredResult | InValueType) -> Number | DeferredResult:
         return self.pow(other, inplace=True)
-
-
-# module-wide shorthands for Number flags
-NOMINAL = Number.NOMINAL
-UP = Number.UP
-DOWN = Number.DOWN
-N = Number.N
-U = Number.U
-D = Number.D
 
 
 class Correlation(object):
@@ -1984,19 +1980,6 @@ def atanh(x: Number | float | NDArray) -> Number | float | NDArray:
     return 1.0 / (1.0 - x**2.0)
 
 
-@ops.register(name="abs", ufuncs=["abs", "absolute"])
-def abs_op(x: Number | float | NDArray) -> Number | float | NDArray:
-    """ abs(x)
-    Absolute value function.
-    """
-    return infer_math(x).abs(x)
-
-
-@abs_op.derive
-def abs_op(x: Number | float | NDArray) -> Number | float | NDArray:
-    return infer_math(x).abs(x)  # TODO: this is not correct! do not commit
-
-
 #
 # helper functions
 #
@@ -2044,7 +2027,7 @@ def is_ufloat(x: Any) -> bool:
 
 def parse_ufloat(
     x: unc_variable,
-    default_tag: str = Number.DEFAULT,
+    default_tag: UncertaintyFlag | str = UncertaintyFlag.DEFAULT,
 ) -> tuple[float, dict[str, float | NDArray]]:
     """
     Takes a ``ufloat`` object *x* from the "uncertainties" package and returns a tuple with two
@@ -2056,7 +2039,7 @@ def parse_ufloat(
     components: dict[str, list[tuple[float, float] | tuple[NDArray, NDArray]]] = defaultdict(list)
     for comp, value in x.error_components().items():  # type: ignore[attr-defined]
         name = comp.tag if comp.tag is not None else default_tag
-        components[name].append((x.derivatives[comp], value))  # type: ignore[arg-type, attr-defined]
+        components[str(name)].append((x.derivatives[comp], value))  # type: ignore[arg-type, attr-defined] # noqa
 
     # combine components to uncertainties, assume full correlation
     uncertainties = {
@@ -2666,7 +2649,7 @@ def round_value(
 
 def format_multiplicative_uncertainty(
     num: Number,
-    unc: str | Sequence[str] = Number.DEFAULT,
+    unc: UncertaintyFlag | str | Sequence[UncertaintyFlag | str] = UncertaintyFlag.DEFAULT,
     digits: int = 3,
     asym_threshold: float = 0.2,
 ) -> str:
@@ -2688,8 +2671,8 @@ def format_multiplicative_uncertainty(
     other case, the asymmetric version us returned.
     """
     # get both multiplicative factors
-    f_u: float = num("up", unc, factor=True)  # type: ignore[assignment]
-    f_d: float = num("down", unc, factor=True)  # type: ignore[assignment]
+    f_u: float = num(UncertaintyDirection.UP, unc, factor=True)  # type: ignore[assignment]
+    f_d: float = num(UncertaintyDirection.DOWN, unc, factor=True)  # type: ignore[assignment]
 
     # if at least one absolute effect is large, consider them asymmetric,
     # if their effects are opposite and similar, consider them symmetric

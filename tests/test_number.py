@@ -13,9 +13,10 @@ from collections import OrderedDict
 from typing import Callable
 
 from scinum import (
-    Number, Correlation, DeferredResult, ops, HAS_NUMPY, HAS_UNCERTAINTIES, UP, DOWN, split_value,
-    match_precision, calculate_uncertainty, round_uncertainty, round_value, infer_si_prefix,
-    create_hep_data_representer, format_multiplicative_uncertainty,
+    Number, Correlation, DeferredResult, ops,
+    HAS_NUMPY, HAS_UNCERTAINTIES, UP, DOWN, DEFAULT,
+    split_value, match_precision, calculate_uncertainty, round_uncertainty, round_value,
+    infer_si_prefix, create_hep_data_representer, format_multiplicative_uncertainty,
 )
 
 if HAS_NUMPY:
@@ -59,7 +60,7 @@ class TestCase(unittest.TestCase):
         self.assertIsInstance(num.nominal, float)
         self.assertEqual(num.nominal, 42.)
 
-        unc = num.get_uncertainty(Number.DEFAULT)
+        unc = num.get_uncertainty(DEFAULT)
         self.assertIsInstance(unc, tuple)
         self.assertEqual(len(unc), 2)
         self.assertEqual(unc, (5., 5.))
@@ -108,7 +109,7 @@ class TestCase(unittest.TestCase):
     def test_constructor_ufloat(self: TestCase) -> None:
         num = Number(ufloat(42, 5))
         self.assertEqual(num.nominal, 42.)
-        self.assertEqual(num.get_uncertainty(Number.DEFAULT), (5., 5.))
+        self.assertEqual(num.get_uncertainty(DEFAULT), (5., 5.))
 
         with self.assertRaises(ValueError):
             Number(ufloat(42, 5), uncertainties={"other_error": 123})
@@ -118,7 +119,7 @@ class TestCase(unittest.TestCase):
 
         num = Number(ufloat(42, 5) + ufloat(2, 2))
         self.assertEqual(num.nominal, 44.)
-        self.assertEqual(num.get_uncertainty(Number.DEFAULT), (7., 7.))
+        self.assertEqual(num.get_uncertainty(DEFAULT), (7., 7.))
 
         num = Number(ufloat(42, 5, tag="foo") + ufloat(2, 2, tag="bar"))
         self.assertEqual(num.nominal, 44.)
