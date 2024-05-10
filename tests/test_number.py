@@ -40,7 +40,7 @@ def ptgr(*args):
 
 class TestCase(unittest.TestCase):
 
-    def __init__(self: TestCase, *args, **kwargs) -> None:
+    def __init__(self, *args, **kwargs) -> None:
         super(TestCase, self).__init__(*args, **kwargs)
 
         self.num = Number(2.5, OrderedDict([
@@ -54,7 +54,7 @@ class TestCase(unittest.TestCase):
             ("H", (0.3j, 0.3)),
         ]))
 
-    def test_constructor(self: TestCase) -> None:
+    def test_constructor(self) -> None:
         num = Number(42, 5)
 
         self.assertIsInstance(num.nominal, float)
@@ -80,7 +80,7 @@ class TestCase(unittest.TestCase):
             num.get_uncertainty("foo", direction=None)
 
     @if_numpy
-    def test_constructor_numpy(self: TestCase) -> None:
+    def test_constructor_numpy(self) -> None:
         num = Number(np.array([5, 27, 42]), 5)
 
         self.assertTrue(num.is_numpy)
@@ -106,7 +106,7 @@ class TestCase(unittest.TestCase):
             num.set_uncertainty("B", np.arange(5, 9))
 
     @if_uncertainties
-    def test_constructor_ufloat(self: TestCase) -> None:
+    def test_constructor_ufloat(self) -> None:
         num = Number(ufloat(42, 5))
         self.assertEqual(num.nominal, 42.)
         self.assertEqual(num.get_uncertainty(DEFAULT), (5., 5.))
@@ -131,7 +131,7 @@ class TestCase(unittest.TestCase):
         self.assertEqual(num.get_uncertainty("foo"), (5., 5.))
         self.assertEqual(num.get_uncertainty("bar"), (3., 3.))
 
-    def test_copy(self: TestCase) -> None:
+    def test_copy(self) -> None:
         num = self.num.copy()
         self.assertFalse(num is self.num)
 
@@ -140,7 +140,7 @@ class TestCase(unittest.TestCase):
         self.assertEqual(len(num.uncertainties), 1)
 
     @if_numpy
-    def test_copy_numpy(self: TestCase) -> None:
+    def test_copy_numpy(self) -> None:
         num = self.num.copy()
         num.nominal = np.array([3, 4, 5])
         self.assertFalse(num is self.num)
@@ -150,7 +150,7 @@ class TestCase(unittest.TestCase):
         self.assertEqual(len(num.uncertainties), 1)
         self.assertEqual(num.u(direction=UP).shape, (3,))
 
-    def test_string_formats(self: TestCase) -> None:
+    def test_string_formats(self) -> None:
         self.assertEqual(len(self.num.str()), 102)
         self.assertEqual(len(self.num.str("%.3f")), 126)
         self.assertEqual(len(self.num.str(lambda n: "%s" % n)), 102)
@@ -183,7 +183,7 @@ class TestCase(unittest.TestCase):
         self.assertTrue(num.str().endswith(" (no uncertainties)"))
         self.assertEqual(len(num.repr().split(" ", 3)[-1]), 25)
 
-    def test_string_flags(self: TestCase) -> None:
+    def test_string_flags(self) -> None:
         n = Number(8848, {"stat": (30, 20)})
         n.set_uncertainty("syst", (0.5j))
 
@@ -202,7 +202,12 @@ class TestCase(unittest.TestCase):
         self.assertEqual(n.str(3, si=False), "8848.0 +30.0-20.0 (stat) +-4424.0 (syst)")
         self.assertEqual(n.str("pdg", si=False), "8848 +30-20 (stat) +-4000 (syst)")
 
-    def test_uncertainty_parsing(self: TestCase) -> None:
+    def test_zero_values(self) -> None:
+        n = Number(0, (2, 0))
+        self.assertEqual(n.str(), "0.0 +2.0-0.0")
+        self.assertEqual(n.str("pub"), "0.00 +2.00-0.00")
+
+    def test_uncertainty_parsing(self) -> None:
         uncs = {}
         for name in "ABCDEFGH":
             unc = uncs[name] = self.num.get_uncertainty(name)
@@ -225,7 +230,7 @@ class TestCase(unittest.TestCase):
         num.set_uncertainty("J", (0.5j, 0.5))
         self.assertEqual(num.get_uncertainty("J"), (1.25, 0.5))
 
-    def test_uncertainty_combination(self: TestCase) -> None:
+    def test_uncertainty_combination(self) -> None:
         nom = self.num.nominal
 
         all_up = ptgr(0.5, 1.0, 1.0, 0.25, 0.25, 1.0, 0.75, 0.75)
@@ -258,7 +263,7 @@ class TestCase(unittest.TestCase):
                 (unc[0] / nom, unc[1] / nom))
 
     @if_numpy
-    def test_uncertainty_combination_numpy(self: TestCase) -> None:
+    def test_uncertainty_combination_numpy(self) -> None:
         num = Number(np.array([2, 4, 6]), 2)
         arr = np.array([1, 2, 3])
         num2 = Number(arr, 1)
@@ -282,7 +287,7 @@ class TestCase(unittest.TestCase):
         self.assertAlmostEqual(d.u(direction=UP)[1], 1.0, 6)
         self.assertAlmostEqual(d.u(direction=UP)[2], 0.666667, 6)
 
-    def test_uncertainty_propagation(self: TestCase) -> None:
+    def test_uncertainty_propagation(self) -> None:
         # ops with constants
         num = self.num + 2
         self.assertEqual(num(), 4.5)
@@ -376,7 +381,7 @@ class TestCase(unittest.TestCase):
         self.assertEqual(num(UP), 0)
         self.assertEqual(num(DOWN), 0)
 
-    def test_combine_uncertaintes(self: TestCase) -> None:
+    def test_combine_uncertaintes(self) -> None:
         n = Number(8848, {"stat": (30, 20), "syst": 20, "other": 10})
 
         n1 = n.combine_uncertaintes()
@@ -388,7 +393,7 @@ class TestCase(unittest.TestCase):
         n3 = n.combine_uncertaintes(OrderedDict([("x", ["stat", "syst"]), ("y", "all")]))
         self.assertEqual(n3.str(format=3), "8848.0 +36.1-28.3 (x) +37.4-30.0 (y)")
 
-    def test_uncertainty_format(self: TestCase) -> None:
+    def test_uncertainty_format(self) -> None:
         n = Number(8848, {"stat": (30, 20), "syst": 20, "other": 10})
 
         self.assertEqual(
@@ -396,7 +401,7 @@ class TestCase(unittest.TestCase):
             "8848.0 +36.1-28.3 (x) +37.4-30.0 (y)",
         )
 
-    def test_ops_registration(self: TestCase) -> None:
+    def test_ops_registration(self) -> None:
         self.assertTrue("exp" in ops)
         self.assertFalse("foo" in ops)
 
@@ -420,7 +425,7 @@ class TestCase(unittest.TestCase):
         self.assertTrue(callable(foo.derivative))
 
     @if_numpy
-    def test_ufuncs(self: TestCase) -> None:
+    def test_ufuncs(self) -> None:
         num = np.multiply(self.num, 2)
         self.assertAlmostEqual(num(), self.num() * 2.)
         self.assertAlmostEqual(num.u("A", UP), 1.)
@@ -443,18 +448,18 @@ class TestCase(unittest.TestCase):
             self.assertAlmostEqual(c.get(UP)[1], 0.722222, 5)
             self.assertAlmostEqual(c.get(DOWN)[0], 0.375, 5)
 
-    def test_op_pow(self: TestCase) -> None:
+    def test_op_pow(self) -> None:
         num = ops.pow(self.num, 2)
         self.assertEqual(num(), self.num() ** 2.)
         self.assertEqual(num.u("A", UP),
             2. * num() * self.num(UP, "A", unc=True, factor=True))
 
-    def test_op_exp(self: TestCase) -> None:
+    def test_op_exp(self) -> None:
         num = ops.exp(self.num)
         self.assertEqual(num(), math.exp(self.num()))
         self.assertEqual(num.u("A", UP), self.num.u("A", UP) * num())
 
-    def test_op_log(self: TestCase) -> None:
+    def test_op_log(self) -> None:
         num = ops.log(self.num)
         self.assertEqual(num(), math.log(self.num()))
         self.assertEqual(num.u("A", UP), self.num(UP, "A", unc=True, factor=True))
@@ -464,37 +469,37 @@ class TestCase(unittest.TestCase):
         self.assertAlmostEqual(num.u("A", UP),
             self.num(UP, "A", unc=True, factor=True) / math.log(2))
 
-    def test_op_sin(self: TestCase) -> None:
+    def test_op_sin(self) -> None:
         num = ops.sin(self.num)
         self.assertEqual(num(), math.sin(self.num()))
         self.assertAlmostEqual(num.u("A", UP),
             self.num.u("A", UP) * abs(math.cos(self.num())))
 
-    def test_op_cos(self: TestCase) -> None:
+    def test_op_cos(self) -> None:
         num = ops.cos(self.num)
         self.assertEqual(num(), math.cos(self.num()))
         self.assertAlmostEqual(num.u("A", UP),
             self.num.u("A", UP) * abs(math.sin(self.num())))
 
-    def test_op_tan(self: TestCase) -> None:
+    def test_op_tan(self) -> None:
         num = ops.tan(self.num)
         self.assertEqual(num(), math.tan(self.num()))
         self.assertAlmostEqual(num.u("A", UP),
             self.num.u("A", UP) / abs(math.cos(self.num())) ** 2)
 
-    def test_split_value(self: TestCase) -> None:
+    def test_split_value(self) -> None:
         self.assertEqual(split_value(1), (1., 0))
         self.assertEqual(split_value(0.123), (1.23, -1))
         self.assertEqual(split_value(42.5), (4.25, 1))
         self.assertEqual(split_value(0), (0., 0))
 
     @if_numpy
-    def test_split_value_numpy(self: TestCase) -> None:
+    def test_split_value_numpy(self) -> None:
         sig, mag = split_value(np.array([1., 0.123, -42.5, 0.]))
         self.assertEqual(tuple(sig), (1., 1.23, -4.25, 0.))
         self.assertEqual(tuple(mag), (0, -1, 1, 0))
 
-    def test_match_precision(self: TestCase) -> None:
+    def test_match_precision(self) -> None:
         self.assertEqual(match_precision(1.234, ".1"), "1.2")
         self.assertEqual(match_precision(1.234, "1."), "1")
         self.assertEqual(match_precision(1.234, ".1", rounding=decimal.ROUND_UP), "1.3")
@@ -504,7 +509,7 @@ class TestCase(unittest.TestCase):
         self.assertEqual(match_precision(1.0, 1.2, force_float=True), "1.0")
 
     @if_numpy
-    def test_match_precision_numpy(self: TestCase) -> None:
+    def test_match_precision_numpy(self) -> None:
         a = np.array([1., 0.123, -42.5, 0.])
         self.assertEqual(tuple(match_precision(a, "1.")), (b"1", b"0", b"-43", b"0"))
         self.assertEqual(tuple(match_precision(a, ".1")), (b"1.0", b"0.1", b"-42.5", b"0.0"))
@@ -512,13 +517,13 @@ class TestCase(unittest.TestCase):
         self.assertEqual(tuple(match_precision(a, 1)), (b"1", b"0", b"-43", b"0"))
         self.assertEqual(tuple(match_precision(a, 0.01)), (b"1.00", b"0.12", b"-42.50", b"0.00"))
 
-    def test_calculate_uncertainty(self: TestCase) -> None:
+    def test_calculate_uncertainty(self) -> None:
         self.assertEqual(calculate_uncertainty([(3, 0.5), (4, 0.5)]), 2.5)
         self.assertEqual(calculate_uncertainty([(3, 0.5), (4, 0.5)], rho=1), 3.5)
         self.assertEqual(calculate_uncertainty([(3, 0.5), (4, 0.5)], rho={(0, 1): 1}), 3.5)
         self.assertEqual(calculate_uncertainty([(3, 0.5), (4, 0.5)], rho={(1, 2): 1}), 2.5)
 
-    def test_round_uncertainty(self: TestCase) -> None:
+    def test_round_uncertainty(self) -> None:
         self.assertEqual(round_uncertainty(0.352), ("4", -1, 1))
         self.assertEqual(round_uncertainty(0.352, 1), ("4", -1, 1))
         self.assertEqual(round_uncertainty(0.352, 2), ("35", -2, 2))
@@ -565,7 +570,7 @@ class TestCase(unittest.TestCase):
             round_uncertainty(0.962, -1)
 
     @if_numpy
-    def test_round_uncertainty_numpy(self: TestCase) -> None:
+    def test_round_uncertainty_numpy(self) -> None:
         a = np.array([0.123, 0.456, 0.987])
 
         digits, mag, prec = round_uncertainty(a)
@@ -596,7 +601,7 @@ class TestCase(unittest.TestCase):
         self.assertEqual(tuple(digits), (b"123", b"46", b"100"))
         self.assertEqual(tuple(mag), (-3, -2, -2))
 
-    def test_round_value(self: TestCase) -> None:
+    def test_round_value(self) -> None:
         self.assertEqual(round_value(1.23, 0.456), ("1", "0", 0))
         self.assertEqual(round_value(1.23, 0.456, 0), ("1", "0", 0))
         self.assertEqual(round_value(1.23, 0.456, 1), ("12", "5", -1))
@@ -629,7 +634,7 @@ class TestCase(unittest.TestCase):
         self.assertEqual(unc_strs[0], ("46", "46"))
         self.assertEqual(mag, -2)
 
-    def test_round_value_list(self: TestCase) -> None:
+    def test_round_value_list(self) -> None:
         val_str, unc_strs, mag = round_value(1.23, [0.333, 0.45678, 0.078, 0.951], "pub")
         self.assertEqual(val_str, "1230")
         self.assertEqual(tuple(unc_strs), ("333", "460", "78", "950"))
@@ -647,7 +652,7 @@ class TestCase(unittest.TestCase):
         self.assertEqual(mag, -2)
 
     @if_numpy
-    def test_round_value_numpy(self: TestCase) -> None:
+    def test_round_value_numpy(self) -> None:
         val_str, unc_strs, mag = round_value(np.array([1.23, 4.56, 10]),
             np.array([0.45678, 0.078, 0.998]), "pub")
         self.assertEqual(tuple(val_str), (b"123", b"4560", b"100"))
@@ -662,7 +667,7 @@ class TestCase(unittest.TestCase):
         with self.assertRaises(ValueError):
             round_value(np.array([1.23, 4.56, 10]), method="pub")
 
-    def test_format_multiplicative_uncertainty(self: TestCase) -> None:
+    def test_format_multiplicative_uncertainty(self) -> None:
         self.assertEqual(
             format_multiplicative_uncertainty(Number(1, 0.15j)),
             "1.150",
@@ -684,7 +689,7 @@ class TestCase(unittest.TestCase):
             "1.150/0.850",
         )
 
-    def test_infer_si_prefix(self: TestCase) -> None:
+    def test_infer_si_prefix(self) -> None:
         self.assertEqual(infer_si_prefix(0), ("", 0))
         self.assertEqual(infer_si_prefix(2), ("", 0))
         self.assertEqual(infer_si_prefix(20), ("", 0))
@@ -694,7 +699,7 @@ class TestCase(unittest.TestCase):
         for n in range(-18, 19, 3):
             self.assertEqual(infer_si_prefix(10 ** n)[1], n)
 
-    def test_correlation(self: TestCase) -> None:
+    def test_correlation(self) -> None:
         c = Correlation(1.5, foo=0.5)
         self.assertEqual(c.default, 1.5)
         self.assertEqual(c.get("foo"), 0.5)
@@ -706,7 +711,7 @@ class TestCase(unittest.TestCase):
         with self.assertRaises(Exception):
             Correlation(1, 1)
 
-    def test_deferred_result(self: TestCase) -> None:
+    def test_deferred_result(self) -> None:
         c = Correlation(1.5, A=0.5)
         d = self.num * c
         self.assertIsInstance(d, DeferredResult)
@@ -721,7 +726,7 @@ class TestCase(unittest.TestCase):
         if sys.version_info.major >= 3:
             eval("self.num @ c")
 
-    def test_deferred_resolution(self: TestCase) -> None:
+    def test_deferred_resolution(self) -> None:
         n = (self.num * Correlation(A=1)) + self.num
         self.assertEqual(n.u("A"), (1.0, 1.0))
         self.assertEqual(n.u("B"), (2.0, 2.0))
@@ -730,7 +735,7 @@ class TestCase(unittest.TestCase):
         self.assertEqual(n.u("A"), (0.5**0.5, 0.5**0.5))
         self.assertEqual(n.u("B"), (2.0, 2.0))
 
-    def test_hep_data_export(self: TestCase) -> None:
+    def test_hep_data_export(self) -> None:
         import yaml  # type: ignore[import-untyped]
 
         yaml.add_representer(Number, create_hep_data_representer())

@@ -2552,7 +2552,7 @@ def round_value(
             _us = list(u) if asym else [u]
             if not _is_numpy:
                 for _u in _us:
-                    if not try_float(_u):
+                    if try_float(_u) is None:
                         raise TypeError(f"uncertainties must be convertible to float: {_u}")
                     if _u < 0:
                         raise ValueError(f"uncertainties must be positive: {_u}")
@@ -2560,7 +2560,7 @@ def round_value(
             else:
                 for j, _u in enumerate(list(_us)):
                     if not is_numpy(_u):
-                        if not try_float(_u):
+                        if try_float(_u) is None:
                             raise TypeError(f"uncertainty is neither array nor float: {_u}")
                         _us[j] = _u = _u * np.ones_like(val)
                     if (_u < 0).any():
