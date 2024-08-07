@@ -1,5 +1,5 @@
 PyYAML
-numpy
+numpy<2
 uncertainties
 
 mypy~=1.8.0;python_version>="3.8"
