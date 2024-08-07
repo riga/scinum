@@ -150,6 +150,14 @@ class TestCase(unittest.TestCase):
         self.assertEqual(len(num.uncertainties), 1)
         self.assertEqual(num.u(direction=UP).shape, (3,))
 
+    @if_numpy
+    def test_getitem_numpy(self) -> None:
+        num = Number(np.array([5, 27, 42]), 5)[1:]
+
+        self.assertEqual(tuple(num.nominal), (27, 42))
+        self.assertEqual(len(num.uncertainties), 1)
+        self.assertEqual(tuple(num.uncertainties["default"][0]), (5, 5))
+
     def test_string_formats(self) -> None:
         self.assertEqual(len(self.num.str()), 102)
         self.assertEqual(len(self.num.str("%.3f")), 126)

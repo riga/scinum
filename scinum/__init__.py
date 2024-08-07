@@ -840,7 +840,7 @@ class Number(object):
         if uncertainties is None:
             uncertainties = self.uncertainties
 
-        return self.__class__(nominal, uncertainties=uncertainties)
+        return self.__class__(nominal, uncertainties=uncertainties, **self._init_kwargs())  # type: ignore[arg-type] # noqa
 
     def get(
         self,
@@ -1112,6 +1112,19 @@ class Number(object):
     ) -> OutValueType | OutUncType:
         # shorthand for get
         return self.get(direction=direction, names=names, unc=unc, factor=factor)
+
+    def __getitem__(self, key: int | slice) -> Number:
+        if not self.is_numpy:
+            raise TypeError("cannot index non-NumPy number")
+
+        return self.__class__(
+            self.nominal[key],
+            uncertainties={
+                name: (up[key], down[key])
+                for name, (up, down) in self.uncertainties.items()
+            },
+            **self._init_kwargs(),  # type: ignore[arg-type]
+        )
 
     def __float__(self) -> OutValueType:
         # extract nominal value
