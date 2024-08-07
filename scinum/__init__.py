@@ -141,7 +141,7 @@ class typed(property):
         self._name = name
 
     def __call__(self, fparse: Callable[[T], T | None]) -> typed:
-        return self.__class__(fparse, setter=self._setter, deleter=self._deleter, name=self._name)
+        return self.__class__(fparse, setter=self._setter, deleter=self._deleter, name=self._name)  # type: ignore[arg-type] # noqa
 
     def _fget(self, name: str) -> Callable[[typed], Any]:
         """
@@ -2027,7 +2027,7 @@ def is_numpy(x: Any) -> bool:
     """
     Returns *True* when numpy is available on your system and *x* is a numpy type.
     """
-    return HAS_NUMPY and type(x).__module__ == np.__name__
+    return HAS_NUMPY and bool(re.match(rf"^{np.__name__}(|\..+)$", type(x).__module__))
 
 
 def is_ufloat(x: Any) -> bool:
