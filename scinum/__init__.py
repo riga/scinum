@@ -2519,7 +2519,7 @@ def round_value(
 
     .. code-block:: python
 
-        # differnt uncertainty structures
+        # different uncertainty structures
         round_value(1.23, 0.456, 1)             # -> ("12", "5", -1)
         round_value(1.23, [0.456], 1)           # -> ("12", ["5"], -1)
         round_value(1.23, (0.456, 0.987), 1)    # -> ("12", ("5", "10"), -1)
