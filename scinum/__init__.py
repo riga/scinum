@@ -2332,7 +2332,7 @@ def infer_uncertainty_precision(
 
         prec = method
         if _is_numpy:
-            prec = np.ones(sig.shape, int) * prec  # type: ignore[union-attr, assignment]
+            prec = np.ones(sig.shape, int) * prec  # type: ignore[union-attr, assignment, type-var, operator] # noqa
 
     elif method in ["pdg", "pdg+1", "publication", "pub"]:
         # default precision
@@ -2358,7 +2358,7 @@ def infer_uncertainty_precision(
                     f"{sig}\nand\n{mag}",
                 )
 
-            prec = np.ones(sig.shape, int) * prec  # type: ignore[union-attr, assignment]
+            prec = np.ones(sig.shape, int) * prec  # type: ignore[union-attr, assignment, type-var, operator] # noqa
 
             # make all decisions based on the three leading digits
             first_three = np.round(sig * 100).astype(int)  # type: ignore[assignment]
@@ -2462,15 +2462,15 @@ def round_uncertainty(
     if precision is not None:
         if _is_numpy:
             if not is_numpy(precision):
-                precision = np.ones(digits.shape, int) * precision  # type: ignore[union-attr]
-            if np.any(precision <= 0):
+                precision = np.ones(digits.shape, int) * precision  # type: ignore[union-attr, type-var, operator] # noqa
+            if np.any(precision <= 0):  # type: ignore[operator]
                 raise ValueError(f"precision must be positive: {precision}")
         elif precision <= 0:
             raise ValueError(f"precision must be positive: {precision}")
 
         digits_float = np.array(digits, float) if _is_numpy else float(digits)
         digits = match_precision(digits_float * 10.0**(precision - prec), "1", **kwargs)  # type: ignore[operator] # noqa
-        mag -= precision - prec
+        mag -= precision - prec  # type: ignore[operator]
 
     return (  # type: ignore[return-value]
         digits,
