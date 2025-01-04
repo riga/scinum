@@ -26,9 +26,8 @@ jobs:
       fail-fast: false
       matrix:
         version:
-          - {python: "3.7", os: ubuntu-22.04}
           - {python: "3.8", os: ubuntu-latest}
-          - {python: "3.0", os: ubuntu-latest}
+          - {python: "3.9", os: ubuntu-latest}
           - {python: "3.10", os: ubuntu-latest}
           - {python: "3.11", os: ubuntu-latest}
           - {python: "3.12", os: ubuntu-latest}
@@ -44,7 +43,7 @@ jobs:
       - name: Setup python 🐍
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python }}
+          python-version: ${{ matrix.version.python }}
 
       - name: Install dependencies ☕️
         run: |
@@ -61,7 +60,7 @@ jobs:
         version:
           - {python: "3.7", os: ubuntu-22.04}
           - {python: "3.8", os: ubuntu-latest}
-          - {python: "3.0", os: ubuntu-latest}
+          - {python: "3.9", os: ubuntu-latest}
           - {python: "3.10", os: ubuntu-latest}
           - {python: "3.11", os: ubuntu-latest}
           - {python: "3.12", os: ubuntu-latest}
