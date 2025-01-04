@@ -488,7 +488,7 @@ class Number(object):
                     v = float(v)
                     # convert to array when nominal is in array
                     if self.is_numpy:
-                        v *= np.ones(self.shape, dtype=self.dtype)  # type: ignore[arg-type]
+                        v *= np.ones(self.shape, dtype=self.dtype)  # type: ignore[arg-type,type-var,operator] # noqa
                 elif is_numpy(v):
                     # check the shape
                     if v.shape != self.shape:
@@ -2303,7 +2303,7 @@ def match_precision(val: float | NDArray, ref: str | float | NDArray, **kwargs) 
         _match_precision(float(v), float(r), **kwargs)
         for v, r in np.nditer([val, ref])
     ]
-    ret = np.chararray(len(strings), itemsize=max(len(s) for s in strings))
+    ret = np.empty(len(strings), dtype=f"|S{max(len(s) for s in strings)}")
     ret[:] = strings
     ret = ret.reshape(val.shape)  # type: ignore[assignment, union-attr]
 

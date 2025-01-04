@@ -64,4 +64,4 @@ exclude = ["tests/*"]
 [tool.mypy]
 
 disable_error_code = ["no-redef", "valid-type"]
-exclude = ["tests", "build", "docs"]
+exclude = ["tests", "build", "docs", "dist"]
