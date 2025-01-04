@@ -8,7 +8,7 @@ support.
 from __future__ import annotations
 
 __author__ = "Marcel Rieger"
-__copyright__ = "Copyright 2017-2024, Marcel Rieger"
+__copyright__ = "Copyright 2017-2025, Marcel Rieger"
 __credits__ = ["Marcel Rieger"]
 __contact__ = "https://github.com/riga/scinum"
 __license__ = "BSD-3-Clause"
