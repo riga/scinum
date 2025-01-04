@@ -22,12 +22,19 @@ jobs:
         run: ./tests/linting.sh
 
   typecheck:
-    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        python: ["3.8", "3.9", "3.10", "3.11", "3.12"]
-    name: typecheck (python ${{ matrix.python }})
+        version:
+          - {python: "3.7", os: ubuntu-22.04}
+          - {python: "3.8", os: ubuntu-latest}
+          - {python: "3.0", os: ubuntu-latest}
+          - {python: "3.10", os: ubuntu-latest}
+          - {python: "3.11", os: ubuntu-latest}
+          - {python: "3.12", os: ubuntu-latest}
+          - {python: "3.13", os: ubuntu-latest}
+    runs-on: ${{ matrix.version.os }}
+    name: typecheck (python ${{ matrix.version.python }})
     steps:
       - name: Checkout 🛎️
         uses: actions/checkout@v4
@@ -48,12 +55,19 @@ jobs:
         run: ./tests/typecheck.sh
 
   unittest:
-    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        python: ["3.7", "3.8", "3.9", "3.10", "3.11", "3.12"]
-    name: unittest (python ${{ matrix.python }})
+        version:
+          - {python: "3.7", os: ubuntu-22.04}
+          - {python: "3.8", os: ubuntu-latest}
+          - {python: "3.0", os: ubuntu-latest}
+          - {python: "3.10", os: ubuntu-latest}
+          - {python: "3.11", os: ubuntu-latest}
+          - {python: "3.12", os: ubuntu-latest}
+          - {python: "3.13", os: ubuntu-latest}
+    runs-on: ${{ matrix.version.os }}
+    name: unittest (python ${{ matrix.version.python }})
     steps:
       - name: Checkout 🛎️
         uses: actions/checkout@v4
@@ -63,7 +77,7 @@ jobs:
       - name: Setup python 🐍
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python }}
+          python-version: ${{ matrix.version.python }}
 
       - name: Install dependencies ☕️
         run: |
@@ -119,7 +133,7 @@ jobs:
         run: ./tests/coverage.sh
 
       - name: Upload report 🔝
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./coverage.xml
