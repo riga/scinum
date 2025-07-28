@@ -568,11 +568,11 @@ class Number(object):
         uncertainties = self.__class__.uncertainties.fparse(self, {name: value})
         self._uncertainties.update(uncertainties)
 
-    def combine_uncertaintes(
+    def combine_uncertainties(
         self,
         combine: UncertaintyFlag | str | dict[str, Sequence[str]] = UncertaintyFlag.ALL,
     ) -> Number:
-        """ combine_uncertaintes(combine_uncs=ALL)
+        """ combine_uncertainties(combine_uncs=ALL)
         Returns a copy of this number with certain uncertainties combined. *combine* can be a
         dictionary of keys mapping to strings denoting uncertainties that should be combined with
         keys refering to new names of the combined uncertainties.
@@ -654,7 +654,7 @@ class Number(object):
         of NumPy objects, *kwargs* are passed to `numpy.array2string
         <https://docs.scipy.org/doc/numpy/reference/generated/numpy.array2string.html>`_.
 
-        When *combine_uncs* is set, uncertainties are reduced via :py:meth:`combine_uncertaintes`.
+        When *combine_uncs* is set, uncertainties are reduced via :py:meth:`combine_uncertainties`.
         When *unit* is set, it is appended to the end of the string. When *scientific* is *True*,
         all values are represented by their scientific notation. When *scientific* is *False* and
         *si* is *True*, the appropriate SI prefix is used.
@@ -701,7 +701,7 @@ class Number(object):
 
         # when uncertainties should be combined, create a new instance and forward to its formatting
         if combine_uncs:
-            return self.combine_uncertaintes(combine=combine_uncs).str(
+            return self.combine_uncertainties(combine=combine_uncs).str(
                 format=format,
                 unit=unit,
                 scientific=scientific,

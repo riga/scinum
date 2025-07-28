@@ -389,16 +389,16 @@ class TestCase(unittest.TestCase):
         self.assertEqual(num(UP), 0)
         self.assertEqual(num(DOWN), 0)
 
-    def test_combine_uncertaintes(self) -> None:
+    def test_combine_uncertainties(self) -> None:
         n = Number(8848, {"stat": (30, 20), "syst": 20, "other": 10})
 
-        n1 = n.combine_uncertaintes()
+        n1 = n.combine_uncertainties()
         self.assertEqual(n1.str(format=3), "8848.0 +37.4-30.0")
 
-        n2 = n.combine_uncertaintes({"x": ["stat", "syst"]})
+        n2 = n.combine_uncertainties({"x": ["stat", "syst"]})
         self.assertEqual(n2.str(format=3), "8848.0 +36.1-28.3 (x) +-10.0 (other)")
 
-        n3 = n.combine_uncertaintes(OrderedDict([("x", ["stat", "syst"]), ("y", "all")]))
+        n3 = n.combine_uncertainties(OrderedDict([("x", ["stat", "syst"]), ("y", "all")]))
         self.assertEqual(n3.str(format=3), "8848.0 +36.1-28.3 (x) +37.4-30.0 (y)")
 
     def test_uncertainty_format(self) -> None:
