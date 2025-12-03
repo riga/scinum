@@ -2211,10 +2211,11 @@ def combine_uncertainties(
 
     # combined formula
     if op == "**":
+        log_nom1 = infer_math(nom1).log(nom1)
         return (
             nom *
             abs(nom2) *  # type: ignore[arg-type]
-            (unc1**2.0 + (math.log(nom1) * unc2)**2.0 + 2 * rho * math.log(nom1) * unc1 * unc2)**0.5  # type: ignore[arg-type] # noqa
+            (unc1**2.0 + (log_nom1 * unc2)**2.0 + 2 * rho * log_nom1 * unc1 * unc2)**0.5  # type: ignore[arg-type] # noqa
         )
 
     # flip rho for sub and div
